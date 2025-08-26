@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Hospital Estimate Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='hospital-style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-container">
+            <div class="brand">
+                <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--hospital-blue);">
+                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/>
+                    <path d="M12 5L8 21l4-7 4 7-4-16"/>
+                </svg>
+                <h1>Hospital Estimate Builder</h1>
+            </div>
+            <nav class="nav-links">
+                <a href="/login">Already have an account? Log in</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h2 class="auth-title">Create Your Account</h2>
+                <p class="auth-subtitle">Join our hospital estimate management system</p>
+            </div>
+
+            <div id="error-message" class="alert alert-error" style="display: none;"></div>
+            <div id="success-message" class="alert alert-success" style="display: none;"></div>
+
+            <form id="signup-form" class="auth-form">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <input 
+                        class="form-input" 
+                        id="username"
+                        name="username" 
+                        type="text" 
+                        placeholder="Enter your username"
+                        required
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input 
+                        class="form-input" 
+                        id="password"
+                        name="password" 
+                        type="password" 
+                        placeholder="Create a secure password"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full" id="signup-btn">
+                    Create Account
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Already have an account? <a href="/login">Sign in here</a></p>
+                <p class="text-muted mt-4">
+                    <small>By creating an account, you agree to our terms of service and privacy policy.</small>
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='auth.js') }}"></script>
+</body>
+</html>

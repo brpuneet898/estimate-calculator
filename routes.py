@@ -1,0 +1,328 @@
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask_login import login_required, current_user, login_user, logout_user
+from models import User, Service, ServiceCategory, PatientCategory, Discount, db
+import csv
+import io
+
+main = Blueprint('main', __name__)
+
+@main.route('/')
+def index():
+    return render_template('login.html')
+
+@main.route('/login')
+def login_page():
+    return render_template('login.html')
+
+@main.route('/signup')
+def signup_page():
+    return render_template('signup.html')
+
+@main.route('/dashboard')
+@login_required
+def dashboard():
+    if current_user.is_admin:
+        return render_template('masters.html')
+    else:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+
+@main.route('/masters')
+@login_required
+def masters():
+    if current_user.is_admin:
+        return render_template('masters.html')
+    else:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+
+# API Routes
+@main.route('/api/signup', methods=['POST'])
+def signup():
+    pass
+@main.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json() or {}
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({'error': 'username and password required'}), 400
+    
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.check_password(password):
+        return jsonify({'error': 'invalid credentials'}), 401
+    
+    login_user(user)
+    return jsonify({
+        'id': user.id, 
+        'username': user.username, 
+        'is_admin': user.is_admin
+    })
+
+@main.route('/api/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    return jsonify({'status': 'ok'})
+
+@main.route('/api/user-info', methods=['GET'])
+@login_required
+def user_info():
+    return jsonify({
+        'id': current_user.id,
+        'username': current_user.username, 
+        'is_admin': current_user.is_admin
+    })
+
+# Services API
+@main.route('/api/services', methods=['GET'])
+@login_required
+def get_services():
+    services = Service.query.all()
+    return jsonify([{
+        'id': s.id,
+        'name': s.name,
+        'category_id': s.category_id,
+        'category_name': s.category.name,
+        'category_display_name': s.category.display_name,
+        'cost_price': float(s.cost_price),
+        'mrp': float(s.mrp),
+        'is_daily_charge': s.is_daily_charge,
+        'visits_per_day': s.visits_per_day
+    } for s in services])
+
+@main.route('/api/services', methods=['POST'])
+@login_required
+def create_service():
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    category_id = data.get('category_id')
+    cost_price = data.get('cost_price')
+    mrp = data.get('mrp')
+    is_daily_charge = data.get('is_daily_charge', False)
+    visits_per_day = data.get('visits_per_day', 1)
+    
+    if not name or not category_id or cost_price is None or mrp is None:
+        return jsonify({'error': 'name, category_id, cost_price, and mrp are required'}), 400
+    
+    try:
+        service = Service(
+            name=name,
+            category_id=category_id,
+            cost_price=cost_price,
+            mrp=mrp,
+            is_daily_charge=is_daily_charge,
+            visits_per_day=visits_per_day
+        )
+        db.session.add(service)
+        db.session.commit()
+        return jsonify({'id': service.id, 'message': 'Service created successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@main.route('/api/services/<int:service_id>', methods=['PUT'])
+@login_required
+def update_service(service_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    service = Service.query.get_or_404(service_id)
+    data = request.get_json() or {}
+    
+    service.name = data.get('name', service.name)
+    service.category_id = data.get('category_id', service.category_id)
+    service.cost_price = data.get('cost_price', service.cost_price)
+    service.mrp = data.get('mrp', service.mrp)
+    service.is_daily_charge = data.get('is_daily_charge', service.is_daily_charge)
+    service.visits_per_day = data.get('visits_per_day', service.visits_per_day)
+    
+    try:
+        db.session.commit()
+        return jsonify({'message': 'Service updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@main.route('/api/services/<int:service_id>', methods=['DELETE'])
+@login_required
+def delete_service(service_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    service = Service.query.get_or_404(service_id)
+    try:
+        db.session.delete(service)
+        db.session.commit()
+        return jsonify({'message': 'Service deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# Categories API
+@main.route('/api/service-categories', methods=['GET'])
+@login_required
+def get_service_categories():
+    categories = ServiceCategory.query.all()
+    return jsonify([{
+        'id': c.id,
+        'name': c.name,
+        'display_name': c.display_name
+    } for c in categories])
+
+@main.route('/api/patient-categories', methods=['GET'])
+@login_required
+def get_patient_categories():
+    categories = PatientCategory.query.all()
+    return jsonify([{
+        'id': c.id,
+        'name': c.name,
+        'display_name': c.display_name
+    } for c in categories])
+
+# Discounts API
+@main.route('/api/discounts', methods=['GET'])
+@login_required
+def get_discounts():
+    discounts = Discount.query.all()
+    return jsonify([{
+        'id': d.id,
+        'patient_category_id': d.patient_category_id,
+        'patient_category_name': d.patient_category.name,
+        'patient_category_display': d.patient_category.display_name,
+        'service_category_id': d.service_category_id,
+        'service_category_name': d.service_category.name,
+        'service_category_display': d.service_category.display_name,
+        'discount_type': d.discount_type,
+        'discount_value': float(d.discount_value)
+    } for d in discounts])
+
+@main.route('/api/discounts', methods=['POST'])
+@login_required
+def create_discount():
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json() or {}
+    patient_category_id = data.get('patient_category_id')
+    service_category_id = data.get('service_category_id')
+    discount_type = data.get('discount_type')
+    discount_value = data.get('discount_value')
+    
+    if not all([patient_category_id, service_category_id, discount_type, discount_value is not None]):
+        return jsonify({'error': 'All fields are required'}), 400
+    
+    if discount_type not in ['percentage', 'flat']:
+        return jsonify({'error': 'discount_type must be percentage or flat'}), 400
+    
+    try:
+        # Check if discount already exists
+        existing = Discount.query.filter_by(
+            patient_category_id=patient_category_id,
+            service_category_id=service_category_id
+        ).first()
+        
+        if existing:
+            existing.discount_type = discount_type
+            existing.discount_value = discount_value
+            db.session.commit()
+            return jsonify({'id': existing.id, 'message': 'Discount updated successfully'})
+        else:
+            discount = Discount(
+                patient_category_id=patient_category_id,
+                service_category_id=service_category_id,
+                discount_type=discount_type,
+                discount_value=discount_value
+            )
+            db.session.add(discount)
+            db.session.commit()
+            return jsonify({'id': discount.id, 'message': 'Discount created successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@main.route('/api/discounts/<int:discount_id>', methods=['DELETE'])
+@login_required
+def delete_discount(discount_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    discount = Discount.query.get_or_404(discount_id)
+    try:
+        db.session.delete(discount)
+        db.session.commit()
+        return jsonify({'message': 'Discount deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# Bulk Upload API
+@main.route('/api/bulk-upload/services', methods=['POST'])
+@login_required
+def bulk_upload_services():
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json() or {}
+    csv_content = data.get('csv_content', '').strip()
+    
+    if not csv_content:
+        return jsonify({'error': 'csv_content is required'}), 400
+    
+    try:
+        # Get category mapping
+        categories = ServiceCategory.query.all()
+        category_map = {cat.name: cat.id for cat in categories}
+        
+        csv_reader = csv.DictReader(io.StringIO(csv_content))
+        success_count = 0
+        errors = []
+        
+        for row_num, row in enumerate(csv_reader, start=2):
+            try:
+                name = row.get('name', '').strip()
+                category_name = row.get('category_name', '').strip()
+                cost_price = float(row.get('cost_price', 0))
+                mrp = float(row.get('mrp', 0))
+                is_daily_charge = row.get('is_daily_charge', '').strip().lower() in ['1', 'true', 'yes']
+                visits_per_day = int(row.get('visits_per_day', 1))
+                
+                if not name or not category_name:
+                    errors.append(f"Row {row_num}: Name and category are required")
+                    continue
+                
+                if category_name not in category_map:
+                    errors.append(f"Row {row_num}: Invalid category '{category_name}'")
+                    continue
+                
+                category_id = category_map[category_name]
+                
+                service = Service(
+                    name=name,
+                    category_id=category_id,
+                    cost_price=cost_price,
+                    mrp=mrp,
+                    is_daily_charge=is_daily_charge,
+                    visits_per_day=visits_per_day
+                )
+                db.session.add(service)
+                success_count += 1
+                
+            except Exception as e:
+                errors.append(f"Row {row_num}: {str(e)}")
+        
+        db.session.commit()
+        return jsonify({
+            'success_count': success_count,
+            'errors': errors,
+            'message': f'Successfully uploaded {success_count} services'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@main.route('/api/bulk-upload/services/template', methods=['GET'])
+@login_required
+def get_services_template():
+    template = "name,category_name,cost_price,mrp,is_daily_charge,visits_per_day\n"
+    template += "Complete Blood Count,laboratory,200.00,300.00,false,1\n"
+    template += "General Nursing Care,nursing,500.00,800.00,true,3\n"
+    return jsonify({'template': template})
