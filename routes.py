@@ -205,6 +205,7 @@ def create_discount():
         return jsonify({'error': 'Admin access required'}), 403
     
     data = request.get_json() or {}
+    discount_id = data.get('id')
     patient_category_id = data.get('patient_category_id')
     service_category_id = data.get('service_category_id')
     discount_type = data.get('discount_type')
@@ -217,7 +218,19 @@ def create_discount():
         return jsonify({'error': 'discount_type must be percentage or flat'}), 400
     
     try:
-        # Check if discount already exists
+        # If id provided, update that specific discount
+        if discount_id:
+            d = Discount.query.get(discount_id)
+            if not d:
+                return jsonify({'error': 'Discount not found'}), 404
+            d.patient_category_id = patient_category_id
+            d.service_category_id = service_category_id
+            d.discount_type = discount_type
+            d.discount_value = discount_value
+            db.session.commit()
+            return jsonify({'id': d.id, 'message': 'Discount updated successfully'})
+
+        # Otherwise, check if a discount exists for this patient+service category and upsert
         existing = Discount.query.filter_by(
             patient_category_id=patient_category_id,
             service_category_id=service_category_id
@@ -252,6 +265,27 @@ def delete_discount(discount_id):
         db.session.delete(discount)
         db.session.commit()
         return jsonify({'message': 'Discount deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@main.route('/api/discounts/<int:discount_id>', methods=['PUT'])
+@login_required
+def update_discount(discount_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+
+    discount = Discount.query.get_or_404(discount_id)
+    data = request.get_json() or {}
+
+    discount.patient_category_id = data.get('patient_category_id', discount.patient_category_id)
+    discount.service_category_id = data.get('service_category_id', discount.service_category_id)
+    discount.discount_type = data.get('discount_type', discount.discount_type)
+    discount.discount_value = data.get('discount_value', discount.discount_value)
+
+    try:
+        db.session.commit()
+        return jsonify({'message': 'Discount updated successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
