@@ -283,30 +283,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function openServiceModal(service = null) {
-        const modal = document.getElementById('service-modal');
-        const title = document.getElementById('service-modal-title');
+        // The service form lives inside the Services tab. Show the Services tab and
+        // populate the form for editing when a service object is provided.
         const form = document.getElementById('service-form');
-        
+        const title = document.getElementById('service-form-title');
+
         if (service) {
             title.textContent = 'Edit Service';
             document.getElementById('service-id').value = service.id;
             document.getElementById('service-name').value = service.name;
             document.getElementById('service-category').value = service.category_id;
-            document.getElementById('service-cost').value = service.cost_price;
-            document.getElementById('service-mrp').value = service.mrp;
-            document.getElementById('service-daily').checked = service.is_daily_charge;
+            document.getElementById('service-cost').value = parseFloat(service.cost_price);
+            document.getElementById('service-mrp').value = parseFloat(service.mrp);
+            document.getElementById('service-daily').value = service.is_daily_charge ? 'true' : 'false';
+            document.getElementById('service-visits').value = service.visits_per_day || 1;
+            document.getElementById('service-submit-btn').textContent = 'Save Changes';
         } else {
-            title.textContent = 'Add Service';
+            title.textContent = 'Add New Service';
             form.reset();
             document.getElementById('service-id').value = '';
+            document.getElementById('service-visits').value = '1';
+            document.getElementById('service-submit-btn').textContent = 'Add Service';
         }
-        
-        modal.style.display = 'flex';
+
+        // Switch to Services tab so the form is visible
+        const servicesTabBtn = document.querySelector('.tab-btn[data-tab="services"]');
+        if (servicesTabBtn) servicesTabBtn.click();
+
+        // Focus the name input for faster editing
+        const nameInput = document.getElementById('service-name');
+        if (nameInput) nameInput.focus();
     }
 
     async function handleServiceSubmit(e) {
         e.preventDefault();
-        
+        const id = document.getElementById('service-id').value;
         const formData = {
             name: document.getElementById('service-name').value,
             category_id: parseInt(document.getElementById('service-category').value),
@@ -317,22 +328,28 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         try {
-            const response = await fetch('/api/services', {
-                method: 'POST',
+            const url = id ? `/api/services/${id}` : '/api/services';
+            const method = id ? 'PUT' : 'POST';
+            const response = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
 
             const result = await response.json();
-            
+
             if (response.ok) {
-                // Reset form
+                // Reset form to add mode
                 document.getElementById('service-form').reset();
                 document.getElementById('service-visits').value = '1';
-                
+                document.getElementById('service-id').value = '';
+                document.getElementById('service-form-title').textContent = 'Add New Service';
+                document.getElementById('service-submit-btn').textContent = 'Add Service';
+
                 loadMastersServices();
-                loadServicesByCategory(document.querySelector('.service-tab-btn.active').dataset.category);
-                showMessage('Service added successfully!', 'success');
+                const activeCatBtn = document.querySelector('.service-tab-btn.active');
+                if (activeCatBtn) loadServicesByCategory(activeCatBtn.dataset.category);
+                showMessage(id ? 'Service updated successfully!' : 'Service added successfully!', 'success');
             } else {
                 showMessage(result.error || 'Error saving service', 'error');
             }
@@ -349,6 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const services = await response.json();
             const service = services.find(s => s.id === serviceId);
             if (service) {
+                // open and populate the inline form for editing
                 openServiceModal(service);
             }
         } catch (error) {
@@ -365,7 +383,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (response.ok) {
-                loadServices();
+                // Refresh masters table and main services list
+                loadMastersServices();
+                const activeCatBtn = document.querySelector('.service-tab-btn.active');
+                if (activeCatBtn) loadServicesByCategory(activeCatBtn.dataset.category);
                 showMessage('Service deleted successfully!', 'success');
             } else {
                 const result = await response.json();
@@ -402,6 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           `₹${parseFloat(discount.discount_value).toFixed(2)}`}
                     </td>
                     <td>
+                        <button class="btn btn-outline btn-sm" onclick="editDiscount(${discount.id})">Edit</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteDiscount(${discount.id})">Delete</button>
                     </td>
                 `;
@@ -415,7 +437,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function openDiscountModal() {
         const modal = document.getElementById('discount-modal');
         const form = document.getElementById('discount-form');
-        form.reset();
+        // If discount-id is present we are editing — preserve form values.
+        const idField = document.getElementById('discount-id');
+        if (!idField || !idField.value) {
+            form.reset();
+            if (idField) idField.value = '';
+        }
         modal.style.display = 'flex';
     }
 
@@ -425,8 +452,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function handleDiscountSubmit(e) {
         e.preventDefault();
-        
-        const formData = {
+        const id = (document.getElementById('discount-id') || {}).value;
+        const payload = {
             patient_category_id: parseInt(document.getElementById('discount-patient-category').value),
             service_category_id: parseInt(document.getElementById('discount-service-category').value),
             discount_type: document.getElementById('discount-type').value,
@@ -434,16 +461,30 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         try {
-            const response = await fetch('/api/discounts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
+            let response;
+            if (id) {
+                // Edit existing discount via PUT to explicit resource (same approach as services)
+                response = await fetch(`/api/discounts/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } else {
+                // Create/Upsert
+                response = await fetch('/api/discounts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            }
 
             const result = await response.json();
-            
+
             if (response.ok) {
                 document.getElementById('discount-modal').style.display = 'none';
+                // clear hidden id after successful save
+                const idField = document.getElementById('discount-id');
+                if (idField) idField.value = '';
                 loadDiscounts();
                 showMessage('Discount saved successfully!', 'success');
             } else {
@@ -473,6 +514,26 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error deleting discount:', error);
             showMessage('Network error. Please try again.', 'error');
+        }
+    };
+
+    window.editDiscount = async function(discountId) {
+        try {
+            const response = await fetch('/api/discounts');
+            const discounts = await response.json();
+            const discount = discounts.find(d => d.id === discountId);
+            if (discount) {
+                document.getElementById('discount-patient-category').value = discount.patient_category_id;
+                document.getElementById('discount-service-category').value = discount.service_category_id;
+                document.getElementById('discount-type').value = discount.discount_type;
+                document.getElementById('discount-value').value = parseFloat(discount.discount_value);
+                // set hidden id to signal edit
+                const idField = document.getElementById('discount-id');
+                if (idField) idField.value = discount.id;
+                openDiscountModal();
+            }
+        } catch (error) {
+            console.error('Error loading discount for edit:', error);
         }
     };
 
