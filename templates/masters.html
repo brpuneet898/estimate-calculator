@@ -157,14 +157,14 @@
             </div>
             
             <!-- Tab Navigation -->
-            <div class="tab-navigation" style="display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">
-                <button class="tab-btn active" data-tab="services">Services</button>
-                <button class="tab-btn" data-tab="discounts">Discounts</button>
-                <button class="tab-btn" data-tab="bulk-upload">Bulk Upload</button>
+            <div class="tab-navigation" role="tablist" aria-label="Masters tabs" style="border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">
+                <button class="tab-btn active" data-tab="services" role="tab" aria-controls="services-tab" aria-selected="true">Services</button>
+                <button class="tab-btn" data-tab="discounts" role="tab" aria-controls="discounts-tab" aria-selected="false">Discounts</button>
+                <button class="tab-btn" data-tab="bulk-upload" role="tab" aria-controls="bulk-upload-tab" aria-selected="false">Bulk Upload</button>
             </div>
 
             <!-- Services Tab -->
-            <div id="services-tab" class="tab-content">
+            <div id="services-tab" class="tab-content" role="tabpanel" aria-hidden="false">
                 <div class="flex justify-between items-center mb-4">
                     <h4>Add New Service</h4>
                 </div>
@@ -225,7 +225,7 @@
             </div>
 
             <!-- Discounts Tab -->
-            <div id="discounts-tab" class="tab-content" style="display: none;">
+            <div id="discounts-tab" class="tab-content" role="tabpanel" aria-hidden="true" style="display: none;">
                 <div class="flex justify-between items-center mb-4">
                     <h4>Discounts Management</h4>
                     <button id="add-discount-btn" class="btn btn-primary">Add Discount</button>
@@ -250,7 +250,7 @@
             </div>
 
             <!-- Bulk Upload Tab -->
-            <div id="bulk-upload-tab" class="tab-content" style="display: none;">
+            <div id="bulk-upload-tab" class="tab-content" role="tabpanel" aria-hidden="true" style="display: none;">
                 <h4 style="margin-bottom: 1rem;">Bulk Upload Services</h4>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">

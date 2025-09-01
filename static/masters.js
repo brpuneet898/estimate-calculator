@@ -47,15 +47,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 const tabName = btn.dataset.tab;
                 
                 // Update active tab button
-                tabBtns.forEach(b => b.classList.remove('active'));
+                tabBtns.forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-selected', 'false');
+                });
+
                 btn.classList.add('active');
-                
-                // Show corresponding tab content
+                btn.setAttribute('aria-selected', 'true');
+
+                // Show corresponding tab content and update aria-hidden
                 tabContents.forEach(content => {
                     content.style.display = 'none';
+                    content.setAttribute('aria-hidden', 'true');
                 });
-                document.getElementById(`${tabName}-tab`).style.display = 'block';
-                
+
+                const panel = document.getElementById(`${tabName}-tab`);
+                if (panel) {
+                    panel.style.display = 'block';
+                    panel.setAttribute('aria-hidden', 'false');
+                    // move focus to first interactive element inside panel for keyboard users
+                    const focusable = panel.querySelector('button, a, input, select, textarea');
+                    if (focusable) focusable.focus();
+                }
+
                 // Load data for the active tab
                 if (tabName === 'services') {
                     loadMastersServices();
@@ -63,7 +77,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadDiscounts();
                 }
             });
+
+            // support left/right arrow navigation between tabs
+            btn.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    const buttons = Array.from(tabBtns);
+                    const idx = buttons.indexOf(btn);
+                    const next = e.key === 'ArrowRight' ? buttons[(idx + 1) % buttons.length] : buttons[(idx - 1 + buttons.length) % buttons.length];
+                    next.focus();
+                    next.click();
+                }
+            });
         });
+
+        // Ensure initial state: only the active tab's panel visible and aria attributes correct
+        const activeBtn = document.querySelector('.tab-btn.active') || tabBtns[0];
+        if (activeBtn) activeBtn.click();
     }
 
     // Form submissions
