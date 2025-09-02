@@ -72,12 +72,15 @@ document.addEventListener('DOMContentLoaded', function() {
             setLoading(submitBtn, true);
 
             try {
+                const roleSelect = document.getElementById('role');
+                const role = roleSelect ? roleSelect.value : 'user';
+                
                 const response = await fetch('/api/signup', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, role })
                 });
 
                 const data = await response.json();

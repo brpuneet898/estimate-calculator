@@ -21,8 +21,8 @@ def signup_page():
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    if not current_user.is_admin:
-        flash('Access denied. Admin privileges required.', 'error')
+    if not (current_user.is_admin or current_user.is_manager):
+        flash('Access denied. Admin or manager privileges required.', 'error')
         return redirect(url_for('main.login_page'))
     return render_template('masters.html')
 
@@ -32,6 +32,7 @@ def signup():
     data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
+    role = data.get('role', 'user')  # Default to 'user' if not specified
     
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
@@ -39,7 +40,12 @@ def signup():
     if User.query.filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 400
     
-    user = User(username=username)
+    # Only allow admin users to create managers or other admins
+    if role in ['admin', 'manager']:
+        if not (current_user.is_authenticated and current_user.is_admin):
+            return jsonify({'error': 'Only admins can create admin or manager accounts'}), 403
+    
+    user = User(username=username, role=role)
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
@@ -60,9 +66,11 @@ def login():
     
     login_user(user)
     return jsonify({
-        'id': user.id, 
-        'username': user.username, 
-        'is_admin': user.is_admin
+        'id': user.id,
+        'username': user.username,
+        'role': user.role,
+        'is_admin': user.is_admin,
+        'is_manager': user.is_manager
     })
 
 @main.route('/api/logout', methods=['POST'])
@@ -76,8 +84,10 @@ def logout():
 def user_info():
     return jsonify({
         'id': current_user.id,
-        'username': current_user.username, 
-        'is_admin': current_user.is_admin
+        'username': current_user.username,
+        'role': current_user.role,
+        'is_admin': current_user.is_admin,
+        'is_manager': current_user.is_manager
     })
 
 # Services API

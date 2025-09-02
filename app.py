@@ -65,7 +65,7 @@ def create_default_data():
     
     # Create admin user
     if not User.query.filter_by(username='admin').first():
-        admin = User(username='admin', is_admin=True)
+        admin = User(username='admin', role='admin')
         admin.set_password('admin')
         db.session.add(admin)
     

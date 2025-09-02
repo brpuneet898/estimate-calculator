@@ -45,7 +45,28 @@
                     <input class="form-input" id="password" name="password" type="password" placeholder="Create a secure password" required>
                 </div>
 
+                <div class="form-group" id="role-group" style="display: none;">
+                    <label class="form-label" for="role">User Role</label>
+                    <select class="form-input" id="role" name="role">
+                        <option value="user">Normal User</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+
                 <button type="submit" class="btn btn-primary w-full" id="signup-btn">Create Account</button>
+                
+                <script>
+                    // Check if current user is admin and show role selection if they are
+                    fetch('/api/user-info')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.is_admin) {
+                                document.getElementById('role-group').style.display = 'block';
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                </script>
             </form>
 
             <div class="auth-footer">

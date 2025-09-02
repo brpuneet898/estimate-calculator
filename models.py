@@ -9,8 +9,16 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
+    role = db.Column(db.String(20), nullable=False, default='user')  # 'admin', 'manager', or 'user'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def is_admin(self):
+        return self.role == 'admin'
+        
+    @property
+    def is_manager(self):
+        return self.role == 'manager'
 
     def set_password(self, password):
         self.password = generate_password_hash(password)
