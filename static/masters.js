@@ -143,15 +143,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Patient summary update
     function updatePatientSummary() {
-        const name = document.getElementById('patient-name').value || 'Not specified';
-        const uhid = document.getElementById('patient-uhid').value || 'Not specified';
-        const category = document.getElementById('patient-category').value || 'Not selected';
-        const stay = document.getElementById('patient-stay').value || '1';
+        const fields = [
+            ['patient-name', 'summary-name', 'Not specified'],
+            ['patient-uhid', 'summary-uhid', 'Not specified'], 
+            ['patient-category', 'summary-category', 'Not selected'],
+            ['patient-stay', 'summary-stay', '1']
+        ];
         
-        document.getElementById('summary-name').textContent = name;
-        document.getElementById('summary-uhid').textContent = uhid;
-        document.getElementById('summary-category').textContent = category;
-        document.getElementById('summary-stay').textContent = stay;
+        fields.forEach(([inputId, summaryId, defaultVal]) => {
+            document.getElementById(summaryId).textContent = 
+                document.getElementById(inputId).value || defaultVal;
+        });
     }
 
     // Load services by category for main interface
@@ -159,40 +161,23 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch('/api/services');
             const allServices = await response.json();
-            
-            const categoryServices = allServices.filter(service => 
-                service.category_name === category
-            );
-            
+            const categoryServices = allServices.filter(service => service.category_name === category);
             const servicesList = document.getElementById('services-list');
-            servicesList.innerHTML = '';
             
             if (categoryServices.length === 0) {
                 servicesList.innerHTML = '<div class="text-muted text-center">No services available in this category</div>';
                 return;
             }
             
-            categoryServices.forEach(service => {
-                const serviceItem = document.createElement('div');
-                serviceItem.className = 'service-item';
-                serviceItem.innerHTML = `
+            servicesList.innerHTML = categoryServices.map(service => `
+                <div class="service-item">
                     <div class="service-info">
                         <div class="service-name">${service.name}</div>
                         <div class="service-price">₹${parseFloat(service.mrp).toFixed(2)}</div>
                     </div>
-                    <button class="btn btn-primary service-select-btn" onclick="selectService(${service.id})">
-                        Select
-                    </button>
-                `;
-                servicesList.appendChild(serviceItem);
-            });
-            
-            // Add count info
-            const countInfo = document.createElement('div');
-            countInfo.className = 'text-muted text-center';
-            countInfo.style.marginTop = '1rem';
-            countInfo.textContent = `Showing ${categoryServices.length} services. Use search to find specific services.`;
-            servicesList.appendChild(countInfo);
+                    <button class="btn btn-primary service-select-btn" onclick="selectService(${service.id})">Select</button>
+                </div>
+            `).join('') + `<div class="text-muted text-center" style="margin-top: 1rem">Showing ${categoryServices.length} services</div>`;
             
         } catch (error) {
             console.error('Error loading services:', error);

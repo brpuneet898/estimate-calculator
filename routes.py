@@ -21,25 +21,30 @@ def signup_page():
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    if current_user.is_admin:
-        return render_template('masters.html')
-    else:
+    if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('main.index'))
-
-@main.route('/masters')
-@login_required
-def masters():
-    if current_user.is_admin:
-        return render_template('masters.html')
-    else:
-        flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.login_page'))
+    return render_template('masters.html')
 
 # API Routes
 @main.route('/api/signup', methods=['POST'])
 def signup():
-    pass
+    data = request.get_json() or {}
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+    
+    if User.query.filter_by(username=username).first():
+        return jsonify({'error': 'Username already exists'}), 400
+    
+    user = User(username=username)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    
+    return jsonify({'message': 'Account created successfully'}), 201
 @main.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
@@ -205,52 +210,31 @@ def create_discount():
         return jsonify({'error': 'Admin access required'}), 403
     
     data = request.get_json() or {}
-    discount_id = data.get('id')
-    patient_category_id = data.get('patient_category_id')
-    service_category_id = data.get('service_category_id')
-    discount_type = data.get('discount_type')
-    discount_value = data.get('discount_value')
+    required_fields = ['patient_category_id', 'service_category_id', 'discount_type', 'discount_value']
     
-    if not all([patient_category_id, service_category_id, discount_type, discount_value is not None]):
+    if not all(data.get(field) is not None for field in required_fields):
         return jsonify({'error': 'All fields are required'}), 400
     
-    if discount_type not in ['percentage', 'flat']:
+    if data['discount_type'] not in ['percentage', 'flat']:
         return jsonify({'error': 'discount_type must be percentage or flat'}), 400
     
     try:
-        # If id provided, update that specific discount
-        if discount_id:
-            d = Discount.query.get(discount_id)
-            if not d:
-                return jsonify({'error': 'Discount not found'}), 404
-            d.patient_category_id = patient_category_id
-            d.service_category_id = service_category_id
-            d.discount_type = discount_type
-            d.discount_value = discount_value
-            db.session.commit()
-            return jsonify({'id': d.id, 'message': 'Discount updated successfully'})
-
-        # Otherwise, check if a discount exists for this patient+service category and upsert
         existing = Discount.query.filter_by(
-            patient_category_id=patient_category_id,
-            service_category_id=service_category_id
+            patient_category_id=data['patient_category_id'],
+            service_category_id=data['service_category_id']
         ).first()
         
         if existing:
-            existing.discount_type = discount_type
-            existing.discount_value = discount_value
-            db.session.commit()
-            return jsonify({'id': existing.id, 'message': 'Discount updated successfully'})
+            existing.discount_type = data['discount_type']
+            existing.discount_value = data['discount_value']
+            message = 'Discount updated successfully'
         else:
-            discount = Discount(
-                patient_category_id=patient_category_id,
-                service_category_id=service_category_id,
-                discount_type=discount_type,
-                discount_value=discount_value
-            )
-            db.session.add(discount)
-            db.session.commit()
-            return jsonify({'id': discount.id, 'message': 'Discount created successfully'}), 201
+            existing = Discount(**{k: data[k] for k in required_fields})
+            db.session.add(existing)
+            message = 'Discount created successfully'
+        
+        db.session.commit()
+        return jsonify({'id': existing.id, 'message': message})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -296,17 +280,12 @@ def bulk_upload_services():
     if not current_user.is_admin:
         return jsonify({'error': 'Admin access required'}), 403
     
-    data = request.get_json() or {}
-    csv_content = data.get('csv_content', '').strip()
-    
+    csv_content = request.get_json().get('csv_content', '').strip()
     if not csv_content:
         return jsonify({'error': 'csv_content is required'}), 400
     
     try:
-        # Get category mapping
-        categories = ServiceCategory.query.all()
-        category_map = {cat.name: cat.id for cat in categories}
-        
+        category_map = {cat.name: cat.id for cat in ServiceCategory.query.all()}
         csv_reader = csv.DictReader(io.StringIO(csv_content))
         success_count = 0
         errors = []
@@ -315,28 +294,18 @@ def bulk_upload_services():
             try:
                 name = row.get('name', '').strip()
                 category_name = row.get('category_name', '').strip()
-                cost_price = float(row.get('cost_price', 0))
-                mrp = float(row.get('mrp', 0))
-                is_daily_charge = row.get('is_daily_charge', '').strip().lower() in ['1', 'true', 'yes']
-                visits_per_day = int(row.get('visits_per_day', 1))
                 
-                if not name or not category_name:
-                    errors.append(f"Row {row_num}: Name and category are required")
+                if not name or not category_name or category_name not in category_map:
+                    errors.append(f"Row {row_num}: Invalid name or category")
                     continue
-                
-                if category_name not in category_map:
-                    errors.append(f"Row {row_num}: Invalid category '{category_name}'")
-                    continue
-                
-                category_id = category_map[category_name]
                 
                 service = Service(
                     name=name,
-                    category_id=category_id,
-                    cost_price=cost_price,
-                    mrp=mrp,
-                    is_daily_charge=is_daily_charge,
-                    visits_per_day=visits_per_day
+                    category_id=category_map[category_name],
+                    cost_price=float(row.get('cost_price', 0)),
+                    mrp=float(row.get('mrp', 0)),
+                    is_daily_charge=row.get('is_daily_charge', '').lower() in ['1', 'true', 'yes'],
+                    visits_per_day=int(row.get('visits_per_day', 1))
                 )
                 db.session.add(service)
                 success_count += 1
@@ -345,11 +314,7 @@ def bulk_upload_services():
                 errors.append(f"Row {row_num}: {str(e)}")
         
         db.session.commit()
-        return jsonify({
-            'success_count': success_count,
-            'errors': errors,
-            'message': f'Successfully uploaded {success_count} services'
-        })
+        return jsonify({'success_count': success_count, 'errors': errors})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

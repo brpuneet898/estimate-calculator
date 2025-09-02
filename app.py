@@ -38,38 +38,27 @@ def create_app():
 def create_default_data():
     """Create default categories and admin user"""
     
-    # Create service categories
-    categories = [
-        ('nursing', 'Nursing'),
-        ('room', 'Room Charges'),
-        ('doctor', 'Doctor Visit'),
-        ('laboratory', 'Laboratory'),
-        ('radiology', 'Radiology'),
-        ('pharmacy', 'Pharmacy'),
-        ('equipment', 'Equipment'),
-        ('procedures', 'Procedures'),
-        ('surgery', 'Surgery')
+    # Service categories
+    service_cats = [
+        ('nursing', 'Nursing'), ('room', 'Room Charges'), ('doctor', 'Doctor Visit'),
+        ('laboratory', 'Laboratory'), ('radiology', 'Radiology'), ('pharmacy', 'Pharmacy'),
+        ('equipment', 'Equipment'), ('procedures', 'Procedures'), ('surgery', 'Surgery')
     ]
     
-    for name, display_name in categories:
-        if not ServiceCategory.query.filter_by(name=name).first():
-            category = ServiceCategory(name=name, display_name=display_name)
-            db.session.add(category)
-    
-    # Create patient categories
+    # Patient categories  
     patient_cats = [
-        ('charity', 'Charity'),
-        ('general_nc_a', 'General NC A'),
-        ('general_nc_b', 'General NC B'),
-        ('general', 'General'),
-        ('deluxe', 'Deluxe'),
-        ('super_deluxe', 'Super Deluxe')
+        ('charity', 'Charity'), ('general_nc_a', 'General NC A'), ('general_nc_b', 'General NC B'),
+        ('general', 'General'), ('deluxe', 'Deluxe'), ('super_deluxe', 'Super Deluxe')
     ]
+    
+    # Create categories if they don't exist
+    for name, display_name in service_cats:
+        if not ServiceCategory.query.filter_by(name=name).first():
+            db.session.add(ServiceCategory(name=name, display_name=display_name))
     
     for name, display_name in patient_cats:
         if not PatientCategory.query.filter_by(name=name).first():
-            category = PatientCategory(name=name, display_name=display_name)
-            db.session.add(category)
+            db.session.add(PatientCategory(name=name, display_name=display_name))
     
     # Create admin user
     if not User.query.filter_by(username='admin').first():

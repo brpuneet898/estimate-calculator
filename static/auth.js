@@ -33,14 +33,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setLoading(button, isLoading) {
+        button.disabled = isLoading;
+        button.classList.toggle('loading', isLoading);
         if (isLoading) {
-            button.disabled = true;
-            button.classList.add('loading');
-            button.textContent = button.textContent.replace('Create Account', 'Creating...').replace('Sign In', 'Signing in...');
+            button.textContent = button.textContent.includes('Create') ? 'Creating...' : 'Signing in...';
         } else {
-            button.disabled = false;
-            button.classList.remove('loading');
-            button.textContent = button.textContent.replace('Creating...', 'Create Account').replace('Signing in...', 'Sign In');
+            button.textContent = button.textContent.includes('Creating') ? 'Create Account' : 'Sign In';
         }
     }
 
@@ -86,13 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok) {
                     showSuccess('Account created successfully! Redirecting...');
-                    setTimeout(() => {
-                        if (data.is_admin) {
-                            window.location.href = '/dashboard';
-                        } else {
-                            window.location.href = '/dashboard';
-                        }
-                    }, 1500);
+                    setTimeout(() => window.location.href = '/dashboard', 1500);
                 } else {
                     showError(data.error || 'Failed to create account');
                 }
@@ -137,13 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok) {
                     showSuccess('Login successful! Redirecting...');
-                    setTimeout(() => {
-                        if (data.is_admin) {
-                            window.location.href = '/dashboard';
-                        } else {
-                            window.location.href = '/dashboard';
-                        }
-                    }, 1000);
+                    setTimeout(() => window.location.href = '/dashboard', 1000);
                 } else {
                     showError(data.error || 'Invalid credentials');
                 }
@@ -157,24 +143,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Input validation feedback
-    const inputs = document.querySelectorAll('.form-input');
-    inputs.forEach(input => {
-        input.addEventListener('input', function() {
+    document.querySelectorAll('.form-input').forEach(input => {
+        input.addEventListener('input', () => {
             hideMessages();
-            
-            // Remove any error styling
-            this.style.borderColor = '';
-            
-            // Add basic validation styling
-            if (this.value.trim()) {
-                this.style.borderColor = 'var(--primary)';
-            }
+            input.style.borderColor = input.value.trim() ? 'var(--primary)' : '';
         });
-
-        input.addEventListener('blur', function() {
-            if (!this.value.trim()) {
-                this.style.borderColor = 'var(--destructive)';
-            }
+        input.addEventListener('blur', () => {
+            if (!input.value.trim()) input.style.borderColor = 'var(--destructive)';
         });
     });
 });
