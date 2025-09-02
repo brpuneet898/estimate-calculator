@@ -170,6 +170,11 @@ def delete_service(service_id):
 @login_required
 def get_service_categories():
     categories = ServiceCategory.query.all()
+    print("\n=== Service Categories from Database ===")
+    for c in categories:
+        print(f"ID: {c.id}, Name: {c.name}, Display Name: {c.display_name}")
+    print("=====================================\n")
+    
     return jsonify([{
         'id': c.id,
         'name': c.name,

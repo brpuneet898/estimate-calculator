@@ -3,10 +3,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     checkAuthStatus();
-    initializeServiceTabs();
+    loadServiceCategoryTabs();
     initializeMastersTabs();
     loadCategories();
-    loadServicesByCategory('laboratory');
     
     // Patient form handling
     const patientForm = document.getElementById('patient-form');
@@ -17,24 +16,48 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', updatePatientSummary);
     });
 
-    // Service category tabs
-    function initializeServiceTabs() {
-        const tabBtns = document.querySelectorAll('.service-tab-btn');
-        
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const category = btn.dataset.category;
+    // Load and initialize service category tabs
+    async function loadServiceCategoryTabs() {
+        try {
+            console.log('Fetching service categories from server...');
+            const response = await fetch('/api/service-categories');
+            const categories = await response.json();
+            console.log('All categories from server:', categories);
+            
+            const tabsContainer = document.getElementById('service-category-tabs');
+            if (!tabsContainer) {
+                console.error('Could not find service-category-tabs element!');
+                return;
+            }
+            
+            // Create tab buttons for all categories
+            categories.forEach((category, index) => {
+                const btn = document.createElement('button');
+                btn.className = `service-tab-btn ${index === 0 ? 'active' : ''}`;
+                btn.setAttribute('data-category', category.name);
+                btn.textContent = category.display_name;
                 
-                // Update active tab
-                tabBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+                btn.addEventListener('click', () => {
+                    console.log('Clicked category:', category.name);
+                    // Update active tab
+                    document.querySelectorAll('.service-tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // Load services for this category
+                    loadServicesByCategory(category.name);
+                });
                 
-                // Update title and load services
-                document.getElementById('service-category-title').textContent = 
-                    btn.textContent + ' Services';
-                loadServicesByCategory(category);
+                tabsContainer.appendChild(btn);
+                console.log('Added tab button for category:', category.name);
             });
-        });
+            
+            // Load services for first category
+            if (categories.length > 0) {
+                loadServicesByCategory(categories[0].name);
+            }
+        } catch (error) {
+            console.error('Error loading service categories:', error);
+        }
     }
 
     // Masters modal tabs

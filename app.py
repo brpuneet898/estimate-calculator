@@ -38,12 +38,15 @@ def create_app():
 def create_default_data():
     """Create default categories and admin user"""
     
+    print("\n=== Creating Default Data ===")
+    
     # Service categories
     service_cats = [
         ('nursing', 'Nursing'), ('room', 'Room Charges'), ('doctor', 'Doctor Visit'),
         ('laboratory', 'Laboratory'), ('radiology', 'Radiology'), ('pharmacy', 'Pharmacy'),
         ('equipment', 'Equipment'), ('procedures', 'Procedures'), ('surgery', 'Surgery')
     ]
+    print("\nService Categories to create:", service_cats)
     
     # Patient categories  
     patient_cats = [
