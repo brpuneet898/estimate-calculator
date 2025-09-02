@@ -86,8 +86,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
 
                 if (response.ok) {
-                    showSuccess('Account created successfully! Redirecting...');
-                    setTimeout(() => window.location.href = '/dashboard', 1500);
+                    showSuccess(data.message || 'Account created successfully!');
+                    // Only redirect if the user is auto-approved (admin created the account)
+                    if (!data.message.includes('approval')) {
+                        setTimeout(() => window.location.href = '/dashboard', 1500);
+                    }
                 } else {
                     showError(data.error || 'Failed to create account');
                 }

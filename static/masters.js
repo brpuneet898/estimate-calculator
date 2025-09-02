@@ -98,8 +98,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadMastersServices();
                 } else if (tabName === 'discounts') {
                     loadDiscounts();
+                } else if (tabName === 'user-approvals') {
+                    if (typeof loadPendingUsers === 'function') {
+                        loadPendingUsers();
+                    }
                 }
             });
+
+            // Extra: if this is the approvals button, ensure refresh on click
+            if (btn.id === 'user-approvals-btn') {
+                btn.addEventListener('click', () => {
+                    if (typeof loadPendingUsers === 'function') loadPendingUsers();
+                });
+            }
 
             // support left/right arrow navigation between tabs
             btn.addEventListener('keydown', (e) => {

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user, login_user, logout_user
-from models import User, Service, ServiceCategory, PatientCategory, Discount, db
+from models import User, PendingUser, Service, ServiceCategory, PatientCategory, Discount, db
 import csv
 import io
 
@@ -27,6 +27,51 @@ def dashboard():
     return render_template('masters.html')
 
 # API Routes
+# User approval endpoints
+@main.route('/api/pending-users', methods=['GET'])
+@login_required
+def get_pending_users():
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    pending_users = PendingUser.query.order_by(PendingUser.created_at.asc()).all()
+    return jsonify([{
+        'id': p.id,
+        'username': p.username,
+        'role': p.role,
+        'created_at': p.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    } for p in pending_users])
+
+@main.route('/api/users/<int:user_id>/approve', methods=['POST'])
+@login_required
+def approve_user(user_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    pending = PendingUser.query.get_or_404(user_id)
+    # create real user
+    if User.query.filter_by(username=pending.username).first():
+        return jsonify({'error': 'A user with this username already exists'}), 400
+
+    new_user = User(username=pending.username, role=pending.role)
+    new_user.set_password(pending.password)
+    db.session.add(new_user)
+    # remove pending entry
+    db.session.delete(pending)
+    db.session.commit()
+    return jsonify({'message': 'User approved and created successfully'})
+
+@main.route('/api/users/<int:user_id>/reject', methods=['POST'])
+@login_required
+def reject_user(user_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    pending = PendingUser.query.get_or_404(user_id)
+    db.session.delete(pending)
+    db.session.commit()
+    return jsonify({'message': 'Pending user rejected and removed'})
+
 @main.route('/api/signup', methods=['POST'])
 def signup():
     data = request.get_json() or {}
@@ -37,7 +82,7 @@ def signup():
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
     
-    if User.query.filter_by(username=username).first():
+    if User.query.filter_by(username=username).first() or PendingUser.query.filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 400
     
     # Only allow admin users to create managers or other admins
@@ -45,12 +90,20 @@ def signup():
         if not (current_user.is_authenticated and current_user.is_admin):
             return jsonify({'error': 'Only admins can create admin or manager accounts'}), 403
     
-    user = User(username=username, role=role)
-    user.set_password(password)
-    db.session.add(user)
+    # If admin is creating account via this endpoint, create directly as User (auto-approved)
+    if current_user.is_authenticated and current_user.is_admin and role in ['admin', 'manager', 'user']:
+        user = User(username=username, role=role)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        return jsonify({'message': 'Account created and approved (admin created)'}), 201
+
+    # Otherwise create a PendingUser entry
+    pending = PendingUser(username=username, role=role)
+    pending.set_password(password)
+    db.session.add(pending)
     db.session.commit()
-    
-    return jsonify({'message': 'Account created successfully'}), 201
+    return jsonify({'message': 'Account created. Awaiting admin approval.'}), 201
 @main.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
@@ -62,8 +115,9 @@ def login():
     
     user = User.query.filter_by(username=username).first()
     if not user or not user.check_password(password):
+        # hide whether user exists; return generic message
         return jsonify({'error': 'invalid credentials'}), 401
-    
+
     login_user(user)
     return jsonify({
         'id': user.id,

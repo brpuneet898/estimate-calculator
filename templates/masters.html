@@ -155,8 +155,39 @@
             <div class="tab-navigation" role="tablist" aria-label="Masters tabs" style="border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">
                 <button class="tab-btn active" data-tab="services" role="tab" aria-controls="services-tab" aria-selected="true">Services</button>
                 <button class="tab-btn" data-tab="discounts" role="tab" aria-controls="discounts-tab" aria-selected="false">Discounts</button>
-                <button class="tab-btn" data-tab="bulk-upload" role="tab" aria-controls="bulk-upload-tab" aria-selected="false">Bulk Upload</button>
+                                <button class="tab-btn" data-tab="bulk-upload" role="tab" aria-controls="bulk-upload-tab" aria-selected="false">Bulk Upload</button>
+                <button class="tab-btn" data-tab="user-approvals" role="tab" aria-controls="user-approvals-tab" aria-selected="false" style="display: none;" id="user-approvals-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    User Approvals
+                </button>
             </div>
+            
+            <!-- User Approvals Tab -->
+            <div id="user-approvals-tab" class="tab-content" role="tabpanel" aria-hidden="true" style="display: none;">
+                <div class="section-header">
+                    <h4>User Approval Management</h4>
+                    <p class="text-muted">Review and manage user registration requests</p>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Requested On</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pending-users-tbody">
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                </div>
 
             <!-- Services Tab -->
             <div id="services-tab" class="tab-content" role="tabpanel" aria-hidden="false">
@@ -331,5 +362,6 @@
     </div>
 
     <script src="{{ url_for('static', filename='masters.js') }}"></script>
+    <script src="{{ url_for('static', filename='user-approvals.js') }}"></script>
 </body>
 </html>
