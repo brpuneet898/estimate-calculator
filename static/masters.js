@@ -645,4 +645,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 3000);
     }
+
+    // Global logout function
+    window.logout = async function() {
+        try {
+            const response = await fetch('/api/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (response.ok) {
+                showMessage('Logged out successfully!', 'success');
+                // Redirect to login page after a short delay
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 1000);
+            } else {
+                showMessage('Error logging out', 'error');
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+            showMessage('Network error during logout', 'error');
+        }
+    };
 });
