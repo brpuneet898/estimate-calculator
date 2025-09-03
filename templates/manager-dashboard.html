@@ -29,6 +29,13 @@
                     </svg>
                     Reports
                 </button>
+                <button class="btn btn-primary" onclick="openMastersModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    Masters
+                </button>
                 <div class="flex items-center text-muted">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -101,6 +108,7 @@
                 <div id="service-content">
                     <div class="flex justify-between items-center mb-4">
                         <h4 id="service-category-title">Laboratory Services</h4>
+                        <button class="btn btn-primary btn-sm" onclick="openServiceModal()">Add Service</button>
                     </div>
                     
                     <div id="services-list">
@@ -141,6 +149,193 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Masters Modal (same as admin but without User Approvals tab) -->
+    <div id="masters-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 900px; width: 95%;">
+            <div class="modal-header">
+                <h3>Masters Management</h3>
+                <button onclick="closeMastersModal()" class="btn btn-outline" style="padding: 0.5rem;">×</button>
+            </div>
+            
+            <!-- Tab Navigation (NO User Approvals tab for managers) -->
+            <div class="tab-navigation" role="tablist" aria-label="Masters tabs" style="border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">
+                <button class="tab-btn active" data-tab="services" role="tab" aria-controls="services-tab" aria-selected="true">Services</button>
+                <button class="tab-btn" data-tab="discounts" role="tab" aria-controls="discounts-tab" aria-selected="false">Discounts</button>
+                <button class="tab-btn" data-tab="bulk-upload" role="tab" aria-controls="bulk-upload-tab" aria-selected="false">Bulk Upload</button>
+            </div>
+            
+            <!-- Services Tab -->
+            <div id="services-tab" class="tab-content" role="tabpanel" aria-hidden="false">
+                <div class="flex justify-between items-center mb-4">
+                    <h4 id="service-form-title">Add New Service</h4>
+                </div>
+                
+                <form id="service-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+                    <div class="form-group">
+                        <label class="form-label">Service Name</label>
+                        <input type="text" id="service-name" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select id="service-category" class="form-input" required>
+                            <option value="">Select Category</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cost Price</label>
+                        <input type="number" id="service-cost" class="form-input" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MRP</label>
+                        <input type="number" id="service-mrp" class="form-input" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Is Daily Charge?</label>
+                        <select id="service-daily" class="form-input">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Visits Per Day</label>
+                        <input type="number" id="service-visits" class="form-input" value="1" min="1">
+                    </div>
+                    <input type="hidden" id="service-id" value="">
+                    <div style="grid-column: span 2;">
+                        <button type="submit" class="btn btn-primary" id="service-submit-btn">Add Service</button>
+                    </div>
+                </form>
+                
+                <div class="table-container" style="overflow-x: auto;">
+                    <table id="services-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Name</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Category</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Cost Price</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">MRP</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Daily</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Visits/Day</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="services-tbody">
+                            <!-- Services will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Discounts Tab -->
+            <div id="discounts-tab" class="tab-content" role="tabpanel" aria-hidden="true" style="display: none;">
+                <div class="flex justify-between items-center mb-4">
+                    <h4>Discounts Management</h4>
+                    <button id="add-discount-btn" class="btn btn-primary">Add Discount</button>
+                </div>
+                
+                <div class="table-container" style="overflow-x: auto;">
+                    <table id="discounts-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Patient Category</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Service Category</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Discount Type</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Discount Value</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="discounts-tbody">
+                            <!-- Discounts will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bulk Upload Tab -->
+            <div id="bulk-upload-tab" class="tab-content" role="tabpanel" aria-hidden="true" style="display: none;">
+                <h4 style="margin-bottom: 1rem;">Bulk Upload Services</h4>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">CSV Content</label>
+                            <textarea 
+                                id="csv-content" 
+                                class="form-input" 
+                                rows="8" 
+                                placeholder="Paste your CSV content here..."
+                            ></textarea>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="upload-csv-btn" class="btn btn-primary">Upload Services</button>
+                            <button id="download-template-btn" class="btn btn-outline">Download Template</button>
+                        </div>
+                        <div id="upload-result" style="margin-top: 1rem;"></div>
+                    </div>
+                    
+                    <div>
+                        <h5 style="font-weight: 600; margin-bottom: 1rem;">CSV Format</h5>
+                        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius); font-family: monospace; font-size: 0.875rem;">
+                            <strong>Required columns:</strong><br>
+                            • name - Service name<br>
+                            • category_name - Category<br>
+                            • cost_price - Cost price<br>
+                            • mrp - Maximum retail price<br>
+                            • is_daily_charge - true/false<br>
+                            • visits_per_day - Number (optional)<br><br>
+                            
+                            <strong>Example:</strong><br>
+                            name,category_name,cost_price,mrp,is_daily_charge,visits_per_day<br>
+                            CBC,laboratory,200.00,300.00,false,1<br>
+                            Nursing Care,nursing,500.00,800.00,true,3
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discount Modal -->
+    <div id="discount-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Discount</h3>
+                <button onclick="closeDiscountModal()" class="btn btn-outline" style="padding: 0.5rem;">×</button>
+            </div>
+            <form id="discount-form">
+                <input type="hidden" id="discount-id" value="">
+                <div class="form-group">
+                    <label class="form-label">Patient Category</label>
+                    <select id="discount-patient-category" class="form-input" required>
+                        <option value="">Select Patient Category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Service Category</label>
+                    <select id="discount-service-category" class="form-input" required>
+                        <option value="">Select Service Category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Discount Type</label>
+                    <select id="discount-type" class="form-input" required>
+                        <option value="">Select Type</option>
+                        <option value="percentage">Percentage</option>
+                        <option value="flat">Flat Amount</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Discount Value</label>
+                    <input type="number" id="discount-value" class="form-input" step="0.01" required>
+                </div>
+                <div class="flex gap-2 justify-end">
+                    <button type="button" onclick="closeDiscountModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Discount</button>
+                </div>
+            </form>
         </div>
     </div>
 

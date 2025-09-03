@@ -1,8 +1,9 @@
-// User Dashboard JavaScript
+// User Dashboard JavaScript - Same 3-column layout as admin but no Masters access
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     checkAuthStatus();
+    loadServiceCategoryTabs();
     
     // Patient form handling
     const patientForm = document.getElementById('patient-form');
@@ -13,10 +14,36 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', updatePatientSummary);
     });
 
-    // Basic estimate button
-    const generateBtn = document.getElementById('generate-basic-estimate-btn');
-    if (generateBtn) {
-        generateBtn.addEventListener('click', generateBasicEstimate);
+    // Load and initialize service category tabs
+    async function loadServiceCategoryTabs() {
+        try {
+            const response = await fetch('/api/service-categories');
+            const categories = await response.json();
+            
+            const tabsContainer = document.getElementById('service-category-tabs');
+            if (!tabsContainer) return;
+            
+            categories.forEach((category, index) => {
+                const btn = document.createElement('button');
+                btn.className = `service-tab-btn ${index === 0 ? 'active' : ''}`;
+                btn.setAttribute('data-category', category.name);
+                btn.textContent = category.display_name;
+                
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.service-tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    loadServicesByCategory(category.name);
+                });
+                
+                tabsContainer.appendChild(btn);
+            });
+            
+            if (categories.length > 0) {
+                loadServicesByCategory(categories[0].name);
+            }
+        } catch (error) {
+            console.error('Error loading service categories:', error);
+        }
     }
 
     // Auth check
@@ -31,7 +58,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!userData.approved) {
                     window.location.href = '/dashboard'; // Will redirect to pending page
                 } else if (userData.is_admin || userData.is_manager) {
-                    window.location.href = '/dashboard'; // Redirect to their proper dashboard
+                    // Don't redirect users to /dashboard - that causes a loop!
+                    // Instead redirect to login if they're admin/manager (shouldn't happen)
+                    window.location.href = '/login';
                 }
             } else {
                 window.location.href = '/login';
@@ -57,33 +86,38 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Generate basic estimate
-    function generateBasicEstimate() {
-        const patientName = document.getElementById('patient-name').value;
-        const patientUhid = document.getElementById('patient-uhid').value;
-        const patientCategory = document.getElementById('patient-category').value;
-        const patientStay = document.getElementById('patient-stay').value;
-
-        if (!patientName || !patientUhid || !patientCategory) {
-            showMessage('Please fill in all patient information', 'error');
-            return;
+    // Load services by category for main interface (read-only for users)
+    async function loadServicesByCategory(category) {
+        try {
+            const response = await fetch('/api/services');
+            const allServices = await response.json();
+            const categoryServices = allServices.filter(service => service.category_name === category);
+            const servicesList = document.getElementById('services-list');
+            
+            if (categoryServices.length === 0) {
+                servicesList.innerHTML = '<div class="text-muted text-center">No services available in this category</div>';
+                return;
+            }
+            
+            servicesList.innerHTML = categoryServices.map(service => `
+                <div class="service-item">
+                    <div class="service-info">
+                        <div class="service-name">${service.name}</div>
+                        <div class="service-price">₹${parseFloat(service.mrp).toFixed(2)}</div>
+                    </div>
+                    <button class="btn btn-primary service-select-btn" onclick="selectService(${service.id})">Select</button>
+                </div>
+            `).join('') + `<div class="text-muted text-center" style="margin-top: 1rem">Showing ${categoryServices.length} services</div>`;
+            
+        } catch (error) {
+            console.error('Error loading services:', error);
         }
-
-        // Basic estimate calculation (simplified)
-        const baseRate = {
-            'charity': 500,
-            'general_nc_a': 1000,
-            'general_nc_b': 1500,
-            'general': 2000,
-            'deluxe': 3000,
-            'super_deluxe': 5000
-        };
-
-        const dailyRate = baseRate[patientCategory] || 1000;
-        const totalEstimate = dailyRate * parseInt(patientStay);
-
-        showMessage(`Basic estimate: ₹${totalEstimate.toLocaleString()} for ${patientStay} day(s)`, 'success');
     }
+
+    // Global function to select a service
+    window.selectService = function(serviceId) {
+        showMessage('Service selected!', 'success');
+    };
 
     // Global logout function
     window.logout = async function() {

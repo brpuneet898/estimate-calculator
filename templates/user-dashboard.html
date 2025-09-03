@@ -20,6 +20,16 @@
                 <h1>Hospital Estimate Builder</h1>
             </div>
             <nav class="nav-links">
+                <button class="btn btn-outline">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    Reports
+                </button>
+                <!-- NO Masters button for users -->
                 <div class="flex items-center text-muted">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -41,8 +51,8 @@
     </header>
 
     <!-- Main Content -->
-    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+    <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 2rem 1rem;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
             
             <!-- Left Column - Patient Form -->
             <div class="card">
@@ -77,6 +87,30 @@
                 </form>
             </div>
 
+            <!-- Middle Column - Services -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Services & Procedures</h3>
+                </div>
+                
+                <!-- Service Category Tabs -->
+                <div class="service-tabs" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;" id="service-category-tabs">
+                    <!-- Service category tabs will be loaded dynamically -->
+                </div>
+
+                <!-- Service Content -->
+                <div id="service-content">
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 id="service-category-title">Laboratory Services</h4>
+                        <!-- NO Add Service button for users -->
+                    </div>
+                    
+                    <div id="services-list">
+                        <!-- Services will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
             <!-- Right Column - Estimate Summary -->
             <div class="card">
                 <div class="card-header">
@@ -94,13 +128,18 @@
                         </div>
                     </div>
                     
-                    <div class="alert" style="background-color: hsl(217, 78%, 97%); border-color: var(--hospital-blue); color: var(--hospital-blue);">
-                        <strong>Note:</strong> Basic estimate functionality available. Contact manager for detailed estimates.
+                    <div id="estimate-details" style="display: none;">
+                        <!-- Estimate breakdown will appear here -->
+                    </div>
+                    
+                    <div class="text-center text-muted" id="estimate-placeholder">
+                        Complete patient information and select services to see estimate
                     </div>
                     
                     <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                        <button class="btn btn-primary w-full" id="generate-basic-estimate-btn">Generate Basic Estimate</button>
-                        <button class="btn btn-outline w-full">View My Estimates</button>
+                        <button class="btn btn-primary w-full" id="generate-estimate-btn">Generate Estimate</button>
+                        <button class="btn btn-outline w-full">Print Estimate</button>
+                        <button class="btn btn-outline w-full">Save Estimate</button>
                     </div>
                 </div>
             </div>

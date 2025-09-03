@@ -1,9 +1,11 @@
-// Manager Dashboard JavaScript
+// Manager Dashboard JavaScript - Full admin functionality except user approvals
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     checkAuthStatus();
     loadServiceCategoryTabs();
+    initializeMastersTabs();
+    loadCategories();
     
     // Patient form handling
     const patientForm = document.getElementById('patient-form');
@@ -14,30 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', updatePatientSummary);
     });
 
-    // Auth check
-    async function checkAuthStatus() {
-        try {
-            const response = await fetch('/api/user-info');
-            if (response.ok) {
-                const userData = await response.json();
-                document.getElementById('user-name').textContent = userData.username;
-                
-                // Check if user is approved and is manager
-                if (!userData.approved) {
-                    window.location.href = '/dashboard'; // Will redirect to pending page
-                } else if (!userData.is_manager) {
-                    window.location.href = '/login';
-                }
-            } else {
-                window.location.href = '/login';
-            }
-        } catch (error) {
-            console.error('Auth check error:', error);
-            window.location.href = '/login';
-        }
-    }
-
-    // Load service category tabs
+    // Load and initialize service category tabs
     async function loadServiceCategoryTabs() {
         try {
             const response = await fetch('/api/service-categories');
@@ -69,7 +48,115 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Load services by category
+    // Masters modal tabs (without user approvals)
+    function initializeMastersTabs() {
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                
+                // Update active tab button
+                tabBtns.forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-selected', 'false');
+                });
+
+                btn.classList.add('active');
+                btn.setAttribute('aria-selected', 'true');
+
+                // Show corresponding tab content
+                tabContents.forEach(content => {
+                    content.style.display = 'none';
+                    content.setAttribute('aria-hidden', 'true');
+                });
+
+                const panel = document.getElementById(`${tabName}-tab`);
+                if (panel) {
+                    panel.style.display = 'block';
+                    panel.setAttribute('aria-hidden', 'false');
+                }
+
+                // Load data for the active tab
+                if (tabName === 'services') {
+                    loadMastersServices();
+                } else if (tabName === 'discounts') {
+                    loadDiscounts();
+                }
+            });
+        });
+
+        // Ensure initial state
+        const activeBtn = document.querySelector('.tab-btn.active') || tabBtns[0];
+        if (activeBtn) activeBtn.click();
+    }
+
+    // Form submissions
+    const serviceForm = document.getElementById('service-form');
+    serviceForm.addEventListener('submit', handleServiceSubmit);
+    
+    const discountForm = document.getElementById('discount-form');
+    if (discountForm) {
+        discountForm.addEventListener('submit', handleDiscountSubmit);
+    }
+    
+    // Bulk upload
+    const uploadBtn = document.getElementById('upload-csv-btn');
+    const downloadTemplateBtn = document.getElementById('download-template-btn');
+    
+    if (uploadBtn) uploadBtn.addEventListener('click', handleBulkUpload);
+    if (downloadTemplateBtn) downloadTemplateBtn.addEventListener('click', downloadTemplate);
+    
+    // Discount modal button
+    const addDiscountBtn = document.getElementById('add-discount-btn');
+    if (addDiscountBtn) {
+        addDiscountBtn.addEventListener('click', () => {
+            openDiscountModal();
+        });
+    }
+
+    // Auth check
+    async function checkAuthStatus() {
+        try {
+            const response = await fetch('/api/user-info');
+            if (response.ok) {
+                const userData = await response.json();
+                document.getElementById('user-name').textContent = userData.username;
+                
+                // Check if user is approved and is manager
+                if (!userData.approved) {
+                    window.location.href = '/dashboard'; // Will redirect to pending page
+                } else if (!userData.is_manager) {
+                    // Don't redirect managers to /dashboard - that causes a loop!
+                    // Instead redirect to login if they're not a manager
+                    window.location.href = '/login';
+                }
+            } else {
+                window.location.href = '/login';
+            }
+        } catch (error) {
+            console.error('Auth check error:', error);
+            window.location.href = '/login';
+        }
+    }
+
+    // Patient summary update
+    function updatePatientSummary() {
+        const fields = [
+            ['patient-name', 'summary-name', 'Not specified'],
+            ['patient-uhid', 'summary-uhid', 'Not specified'], 
+            ['patient-category', 'summary-category', 'Not selected'],
+            ['patient-stay', 'summary-stay', '1']
+        ];
+        
+        fields.forEach(([inputId, summaryId, defaultVal]) => {
+            document.getElementById(summaryId).textContent = 
+                document.getElementById(inputId).value || defaultVal;
+        });
+    }
+
+    // Load services by category for main interface
     async function loadServicesByCategory(category) {
         try {
             const response = await fetch('/api/services');
@@ -90,32 +177,404 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <button class="btn btn-primary service-select-btn" onclick="selectService(${service.id})">Select</button>
                 </div>
-            `).join('');
+            `).join('') + `<div class="text-muted text-center" style="margin-top: 1rem">Showing ${categoryServices.length} services</div>`;
             
         } catch (error) {
             console.error('Error loading services:', error);
         }
     }
 
-    // Patient summary update
-    function updatePatientSummary() {
-        const fields = [
-            ['patient-name', 'summary-name', 'Not specified'],
-            ['patient-uhid', 'summary-uhid', 'Not specified'], 
-            ['patient-category', 'summary-category', 'Not selected'],
-            ['patient-stay', 'summary-stay', '1']
-        ];
-        
-        fields.forEach(([inputId, summaryId, defaultVal]) => {
-            document.getElementById(summaryId).textContent = 
-                document.getElementById(inputId).value || defaultVal;
-        });
-    }
-
     // Global function to select a service
     window.selectService = function(serviceId) {
         showMessage('Service selected!', 'success');
     };
+
+    // Load categories for dropdowns
+    async function loadCategories() {
+        try {
+            const [serviceCategories, patientCategories] = await Promise.all([
+                fetch('/api/service-categories').then(r => r.json()),
+                fetch('/api/patient-categories').then(r => r.json())
+            ]);
+
+            // Populate service category dropdowns
+            const serviceCategorySelect = document.getElementById('service-category');
+            const discountServiceCategorySelect = document.getElementById('discount-service-category');
+            
+            serviceCategorySelect.innerHTML = '<option value="">Select Category</option>';
+            discountServiceCategorySelect.innerHTML = '<option value="">Select Service Category</option>';
+            
+            serviceCategories.forEach(cat => {
+                serviceCategorySelect.innerHTML += `<option value="${cat.id}">${cat.display_name}</option>`;
+                discountServiceCategorySelect.innerHTML += `<option value="${cat.id}">${cat.display_name}</option>`;
+            });
+
+            // Populate patient category dropdown
+            const patientCategorySelect = document.getElementById('discount-patient-category');
+            patientCategorySelect.innerHTML = '<option value="">Select Patient Category</option>';
+            
+            patientCategories.forEach(cat => {
+                patientCategorySelect.innerHTML += `<option value="${cat.id}">${cat.display_name}</option>`;
+            });
+
+        } catch (error) {
+            console.error('Error loading categories:', error);
+        }
+    }
+
+    // Masters Modal Functions
+    window.openMastersModal = function() {
+        document.getElementById('masters-modal').style.display = 'flex';
+        loadMastersServices();
+    };
+
+    window.closeMastersModal = function() {
+        document.getElementById('masters-modal').style.display = 'none';
+    };
+
+    // Services Management in Masters Modal
+    async function loadMastersServices() {
+        try {
+            const response = await fetch('/api/services');
+            const services = await response.json();
+            
+            const tbody = document.getElementById('services-tbody');
+            tbody.innerHTML = '';
+            
+            services.forEach(service => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${service.name}</td>
+                    <td>${service.category_display_name}</td>
+                    <td>₹${parseFloat(service.cost_price).toFixed(2)}</td>
+                    <td>₹${parseFloat(service.mrp).toFixed(2)}</td>
+                    <td>
+                        <span class="badge ${service.is_daily_charge ? 'badge-success' : 'badge-info'}">
+                            ${service.is_daily_charge ? 'Yes' : 'No'}
+                        </span>
+                    </td>
+                    <td>${service.visits_per_day || 1}</td>
+                    <td>
+                        <button class="btn btn-outline btn-sm" onclick="editService(${service.id})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteService(${service.id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Error loading services:', error);
+        }
+    }
+
+    function openServiceModal(service = null) {
+        const form = document.getElementById('service-form');
+        const title = document.getElementById('service-form-title');
+
+        if (service) {
+            title.textContent = 'Edit Service';
+            document.getElementById('service-id').value = service.id;
+            document.getElementById('service-name').value = service.name;
+            document.getElementById('service-category').value = service.category_id;
+            document.getElementById('service-cost').value = parseFloat(service.cost_price);
+            document.getElementById('service-mrp').value = parseFloat(service.mrp);
+            document.getElementById('service-daily').value = service.is_daily_charge ? 'true' : 'false';
+            document.getElementById('service-visits').value = service.visits_per_day || 1;
+            document.getElementById('service-submit-btn').textContent = 'Save Changes';
+        } else {
+            title.textContent = 'Add New Service';
+            form.reset();
+            document.getElementById('service-id').value = '';
+            document.getElementById('service-visits').value = '1';
+            document.getElementById('service-submit-btn').textContent = 'Add Service';
+        }
+
+        const servicesTabBtn = document.querySelector('.tab-btn[data-tab="services"]');
+        if (servicesTabBtn) servicesTabBtn.click();
+
+        const nameInput = document.getElementById('service-name');
+        if (nameInput) nameInput.focus();
+    }
+
+    async function handleServiceSubmit(e) {
+        e.preventDefault();
+        const id = document.getElementById('service-id').value;
+        const formData = {
+            name: document.getElementById('service-name').value,
+            category_id: parseInt(document.getElementById('service-category').value),
+            cost_price: parseFloat(document.getElementById('service-cost').value),
+            mrp: parseFloat(document.getElementById('service-mrp').value),
+            is_daily_charge: document.getElementById('service-daily').value === 'true',
+            visits_per_day: parseInt(document.getElementById('service-visits').value) || 1
+        };
+
+        try {
+            const url = id ? `/api/services/${id}` : '/api/services';
+            const method = id ? 'PUT' : 'POST';
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                document.getElementById('service-form').reset();
+                document.getElementById('service-visits').value = '1';
+                document.getElementById('service-id').value = '';
+                document.getElementById('service-form-title').textContent = 'Add New Service';
+                document.getElementById('service-submit-btn').textContent = 'Add Service';
+
+                loadMastersServices();
+                const activeCatBtn = document.querySelector('.service-tab-btn.active');
+                if (activeCatBtn) loadServicesByCategory(activeCatBtn.dataset.category);
+                showMessage(id ? 'Service updated successfully!' : 'Service added successfully!', 'success');
+            } else {
+                showMessage(result.error || 'Error saving service', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving service:', error);
+            showMessage('Network error. Please try again.', 'error');
+        }
+    }
+
+    // Global functions for service actions
+    window.editService = async function(serviceId) {
+        try {
+            const response = await fetch('/api/services');
+            const services = await response.json();
+            const service = services.find(s => s.id === serviceId);
+            if (service) {
+                openServiceModal(service);
+            }
+        } catch (error) {
+            console.error('Error loading service:', error);
+        }
+    };
+
+    window.deleteService = async function(serviceId) {
+        if (!confirm('Are you sure you want to delete this service?')) return;
+        
+        try {
+            const response = await fetch(`/api/services/${serviceId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                loadMastersServices();
+                const activeCatBtn = document.querySelector('.service-tab-btn.active');
+                if (activeCatBtn) loadServicesByCategory(activeCatBtn.dataset.category);
+                showMessage('Service deleted successfully!', 'success');
+            } else {
+                const result = await response.json();
+                showMessage(result.error || 'Error deleting service', 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting service:', error);
+            showMessage('Network error. Please try again.', 'error');
+        }
+    };
+
+    // Discounts Management
+    async function loadDiscounts() {
+        try {
+            const response = await fetch('/api/discounts');
+            const discounts = await response.json();
+            
+            const tbody = document.getElementById('discounts-tbody');
+            tbody.innerHTML = '';
+            
+            discounts.forEach(discount => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${discount.patient_category_display}</td>
+                    <td>${discount.service_category_display}</td>
+                    <td>
+                        <span class="badge ${discount.discount_type === 'percentage' ? 'badge-info' : 'badge-warning'}">
+                            ${discount.discount_type === 'percentage' ? 'Percentage' : 'Flat Amount'}
+                        </span>
+                    </td>
+                    <td>
+                        ${discount.discount_type === 'percentage' ? 
+                          `${discount.discount_value}%` : 
+                          `₹${parseFloat(discount.discount_value).toFixed(2)}`}
+                    </td>
+                    <td>
+                        <button class="btn btn-outline btn-sm" onclick="editDiscount(${discount.id})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteDiscount(${discount.id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Error loading discounts:', error);
+        }
+    }
+
+    function openDiscountModal() {
+        const modal = document.getElementById('discount-modal');
+        const form = document.getElementById('discount-form');
+        const idField = document.getElementById('discount-id');
+        if (!idField || !idField.value) {
+            form.reset();
+            if (idField) idField.value = '';
+        }
+        modal.style.display = 'flex';
+    }
+
+    window.closeDiscountModal = function() {
+        document.getElementById('discount-modal').style.display = 'none';
+    };
+
+    async function handleDiscountSubmit(e) {
+        e.preventDefault();
+        const id = (document.getElementById('discount-id') || {}).value;
+        const payload = {
+            patient_category_id: parseInt(document.getElementById('discount-patient-category').value),
+            service_category_id: parseInt(document.getElementById('discount-service-category').value),
+            discount_type: document.getElementById('discount-type').value,
+            discount_value: parseFloat(document.getElementById('discount-value').value)
+        };
+
+        try {
+            let response;
+            if (id) {
+                response = await fetch(`/api/discounts/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } else {
+                response = await fetch('/api/discounts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            }
+
+            const result = await response.json();
+
+            if (response.ok) {
+                document.getElementById('discount-modal').style.display = 'none';
+                const idField = document.getElementById('discount-id');
+                if (idField) idField.value = '';
+                loadDiscounts();
+                showMessage('Discount saved successfully!', 'success');
+            } else {
+                showMessage(result.error || 'Error saving discount', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving discount:', error);
+            showMessage('Network error. Please try again.', 'error');
+        }
+    }
+
+    window.deleteDiscount = async function(discountId) {
+        if (!confirm('Are you sure you want to delete this discount?')) return;
+        
+        try {
+            const response = await fetch(`/api/discounts/${discountId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                loadDiscounts();
+                showMessage('Discount deleted successfully!', 'success');
+            } else {
+                const result = await response.json();
+                showMessage(result.error || 'Error deleting discount', 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting discount:', error);
+            showMessage('Network error. Please try again.', 'error');
+        }
+    };
+
+    window.editDiscount = async function(discountId) {
+        try {
+            const response = await fetch('/api/discounts');
+            const discounts = await response.json();
+            const discount = discounts.find(d => d.id === discountId);
+            if (discount) {
+                document.getElementById('discount-patient-category').value = discount.patient_category_id;
+                document.getElementById('discount-service-category').value = discount.service_category_id;
+                document.getElementById('discount-type').value = discount.discount_type;
+                document.getElementById('discount-value').value = parseFloat(discount.discount_value);
+                const idField = document.getElementById('discount-id');
+                if (idField) idField.value = discount.id;
+                openDiscountModal();
+            }
+        } catch (error) {
+            console.error('Error loading discount for edit:', error);
+        }
+    };
+
+    // Bulk Upload
+    async function handleBulkUpload() {
+        const csvContent = document.getElementById('csv-content').value.trim();
+        
+        if (!csvContent) {
+            showMessage('Please enter CSV content', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/bulk-upload/services', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ csv_content: csvContent })
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                const resultDiv = document.getElementById('upload-result');
+                let html = `<div class="alert alert-success">
+                    Successfully uploaded ${result.success_count} services!
+                </div>`;
+                
+                if (result.errors && result.errors.length > 0) {
+                    html += `<div class="alert alert-error">
+                        <strong>Errors:</strong><br>
+                        ${result.errors.join('<br>')}
+                    </div>`;
+                }
+                
+                resultDiv.innerHTML = html;
+                loadMastersServices();
+                document.getElementById('csv-content').value = '';
+            } else {
+                showMessage(result.error || 'Error uploading services', 'error');
+            }
+        } catch (error) {
+            console.error('Error uploading services:', error);
+            showMessage('Network error. Please try again.', 'error');
+        }
+    }
+
+    async function downloadTemplate() {
+        try {
+            const response = await fetch('/api/bulk-upload/services/template');
+            const result = await response.json();
+            
+            if (response.ok) {
+                const blob = new Blob([result.template], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'services_template.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } else {
+                showMessage('Error downloading template', 'error');
+            }
+        } catch (error) {
+            console.error('Error downloading template:', error);
+            showMessage('Network error. Please try again.', 'error');
+        }
+    }
 
     // Global logout function
     window.logout = async function() {
