@@ -3,10 +3,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     checkAuthStatus();
-    initializeServiceTabs();
+    loadServiceCategoryTabs();
     initializeMastersTabs();
     loadCategories();
-    loadServicesByCategory('laboratory');
     
     // Patient form handling
     const patientForm = document.getElementById('patient-form');
@@ -17,24 +16,48 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', updatePatientSummary);
     });
 
-    // Service category tabs
-    function initializeServiceTabs() {
-        const tabBtns = document.querySelectorAll('.service-tab-btn');
-        
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const category = btn.dataset.category;
+    // Load and initialize service category tabs
+    async function loadServiceCategoryTabs() {
+        try {
+            console.log('Fetching service categories from server...');
+            const response = await fetch('/api/service-categories');
+            const categories = await response.json();
+            console.log('All categories from server:', categories);
+            
+            const tabsContainer = document.getElementById('service-category-tabs');
+            if (!tabsContainer) {
+                console.error('Could not find service-category-tabs element!');
+                return;
+            }
+            
+            // Create tab buttons for all categories
+            categories.forEach((category, index) => {
+                const btn = document.createElement('button');
+                btn.className = `service-tab-btn ${index === 0 ? 'active' : ''}`;
+                btn.setAttribute('data-category', category.name);
+                btn.textContent = category.display_name;
                 
-                // Update active tab
-                tabBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+                btn.addEventListener('click', () => {
+                    console.log('Clicked category:', category.name);
+                    // Update active tab
+                    document.querySelectorAll('.service-tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // Load services for this category
+                    loadServicesByCategory(category.name);
+                });
                 
-                // Update title and load services
-                document.getElementById('service-category-title').textContent = 
-                    btn.textContent + ' Services';
-                loadServicesByCategory(category);
+                tabsContainer.appendChild(btn);
+                console.log('Added tab button for category:', category.name);
             });
-        });
+            
+            // Load services for first category
+            if (categories.length > 0) {
+                loadServicesByCategory(categories[0].name);
+            }
+        } catch (error) {
+            console.error('Error loading service categories:', error);
+        }
     }
 
     // Masters modal tabs
@@ -75,8 +98,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadMastersServices();
                 } else if (tabName === 'discounts') {
                     loadDiscounts();
+                } else if (tabName === 'user-approvals') {
+                    if (typeof loadPendingUsers === 'function') {
+                        loadPendingUsers();
+                    }
                 }
             });
+
+            // Extra: if this is the approvals button, ensure refresh on click
+            if (btn.id === 'user-approvals-btn') {
+                btn.addEventListener('click', () => {
+                    if (typeof loadPendingUsers === 'function') loadPendingUsers();
+                });
+            }
 
             // support left/right arrow navigation between tabs
             btn.addEventListener('keydown', (e) => {
@@ -143,15 +177,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Patient summary update
     function updatePatientSummary() {
-        const name = document.getElementById('patient-name').value || 'Not specified';
-        const uhid = document.getElementById('patient-uhid').value || 'Not specified';
-        const category = document.getElementById('patient-category').value || 'Not selected';
-        const stay = document.getElementById('patient-stay').value || '1';
+        const fields = [
+            ['patient-name', 'summary-name', 'Not specified'],
+            ['patient-uhid', 'summary-uhid', 'Not specified'], 
+            ['patient-category', 'summary-category', 'Not selected'],
+            ['patient-stay', 'summary-stay', '1']
+        ];
         
-        document.getElementById('summary-name').textContent = name;
-        document.getElementById('summary-uhid').textContent = uhid;
-        document.getElementById('summary-category').textContent = category;
-        document.getElementById('summary-stay').textContent = stay;
+        fields.forEach(([inputId, summaryId, defaultVal]) => {
+            document.getElementById(summaryId).textContent = 
+                document.getElementById(inputId).value || defaultVal;
+        });
     }
 
     // Load services by category for main interface
@@ -159,40 +195,23 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch('/api/services');
             const allServices = await response.json();
-            
-            const categoryServices = allServices.filter(service => 
-                service.category_name === category
-            );
-            
+            const categoryServices = allServices.filter(service => service.category_name === category);
             const servicesList = document.getElementById('services-list');
-            servicesList.innerHTML = '';
             
             if (categoryServices.length === 0) {
                 servicesList.innerHTML = '<div class="text-muted text-center">No services available in this category</div>';
                 return;
             }
             
-            categoryServices.forEach(service => {
-                const serviceItem = document.createElement('div');
-                serviceItem.className = 'service-item';
-                serviceItem.innerHTML = `
+            servicesList.innerHTML = categoryServices.map(service => `
+                <div class="service-item">
                     <div class="service-info">
                         <div class="service-name">${service.name}</div>
                         <div class="service-price">₹${parseFloat(service.mrp).toFixed(2)}</div>
                     </div>
-                    <button class="btn btn-primary service-select-btn" onclick="selectService(${service.id})">
-                        Select
-                    </button>
-                `;
-                servicesList.appendChild(serviceItem);
-            });
-            
-            // Add count info
-            const countInfo = document.createElement('div');
-            countInfo.className = 'text-muted text-center';
-            countInfo.style.marginTop = '1rem';
-            countInfo.textContent = `Showing ${categoryServices.length} services. Use search to find specific services.`;
-            servicesList.appendChild(countInfo);
+                    <button class="btn btn-primary service-select-btn" onclick="selectService(${service.id})">Select</button>
+                </div>
+            `).join('') + `<div class="text-muted text-center" style="margin-top: 1rem">Showing ${categoryServices.length} services</div>`;
             
         } catch (error) {
             console.error('Error loading services:', error);

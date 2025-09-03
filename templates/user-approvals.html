@@ -1,0 +1,26 @@
+{% extends 'masters.html' %}
+
+{% block content %}
+<div class="tab-content" id="user-approvals-tab" style="display: none;">
+    <div class="section-header">
+        <h2>User Approval Management</h2>
+        <p class="text-muted">Manage user registration requests</p>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Requested On</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="pending-users-tbody">
+                <!-- Will be populated dynamically -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

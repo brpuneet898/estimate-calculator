@@ -19,7 +19,7 @@
                 <h1>Hospital Estimate Builder</h1>
             </div>
             <nav class="nav-links">
-                <a href="/">Need an account? Sign up</a>
+                <a href="/signup">Need an account? Sign up</a>
             </nav>
         </div>
     </header>
@@ -37,35 +37,19 @@
             <form id="login-form" class="auth-form">
                 <div class="form-group">
                     <label class="form-label" for="username">Username</label>
-                    <input 
-                        class="form-input" 
-                        id="username"
-                        name="username" 
-                        type="text" 
-                        placeholder="Enter your username"
-                        required
-                    >
+                    <input class="form-input" id="username" name="username" type="text" placeholder="Enter your username" required>
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label" for="password">Password</label>
-                    <input 
-                        class="form-input" 
-                        id="password"
-                        name="password" 
-                        type="password" 
-                        placeholder="Enter your password"
-                        required
-                    >
+                    <input class="form-input" id="password" name="password" type="password" placeholder="Enter your password" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-full" id="login-btn">
-                    Sign In
-                </button>
+                <button type="submit" class="btn btn-primary w-full" id="login-btn">Sign In</button>
             </form>
 
             <div class="auth-footer">
-                <p>Don't have an account? <a href="/">Create one here</a></p>
+                <p>Don't have an account? <a href="/signup">Create one here</a></p>
                 <div class="mt-4 text-center">
                     <div class="alert" style="background-color: hsl(217, 78%, 97%); border-color: var(--hospital-blue); color: var(--hospital-blue); font-size: 0.875rem;">
                         <strong>Demo Access:</strong> Use <code>admin/admin</code> for admin access

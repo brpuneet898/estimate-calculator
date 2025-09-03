@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user, login_user, logout_user
-from models import User, Service, ServiceCategory, PatientCategory, Discount, db
+from models import User, PendingUser, Service, ServiceCategory, PatientCategory, Discount, db
 import csv
 import io
 
@@ -21,25 +21,89 @@ def signup_page():
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    if current_user.is_admin:
-        return render_template('masters.html')
-    else:
-        flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('main.index'))
-
-@main.route('/masters')
-@login_required
-def masters():
-    if current_user.is_admin:
-        return render_template('masters.html')
-    else:
-        flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('main.index'))
+    if not (current_user.is_admin or current_user.is_manager):
+        flash('Access denied. Admin or manager privileges required.', 'error')
+        return redirect(url_for('main.login_page'))
+    return render_template('masters.html')
 
 # API Routes
+# User approval endpoints
+@main.route('/api/pending-users', methods=['GET'])
+@login_required
+def get_pending_users():
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    pending_users = PendingUser.query.order_by(PendingUser.created_at.asc()).all()
+    return jsonify([{
+        'id': p.id,
+        'username': p.username,
+        'role': p.role,
+        'created_at': p.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    } for p in pending_users])
+
+@main.route('/api/users/<int:user_id>/approve', methods=['POST'])
+@login_required
+def approve_user(user_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    pending = PendingUser.query.get_or_404(user_id)
+    # create real user
+    if User.query.filter_by(username=pending.username).first():
+        return jsonify({'error': 'A user with this username already exists'}), 400
+
+    new_user = User(username=pending.username, role=pending.role)
+    new_user.set_password(pending.password)
+    db.session.add(new_user)
+    # remove pending entry
+    db.session.delete(pending)
+    db.session.commit()
+    return jsonify({'message': 'User approved and created successfully'})
+
+@main.route('/api/users/<int:user_id>/reject', methods=['POST'])
+@login_required
+def reject_user(user_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    pending = PendingUser.query.get_or_404(user_id)
+    db.session.delete(pending)
+    db.session.commit()
+    return jsonify({'message': 'Pending user rejected and removed'})
+
 @main.route('/api/signup', methods=['POST'])
 def signup():
-    pass
+    data = request.get_json() or {}
+    username = data.get('username')
+    password = data.get('password')
+    role = data.get('role', 'user')  # Default to 'user' if not specified
+    
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+    
+    if User.query.filter_by(username=username).first() or PendingUser.query.filter_by(username=username).first():
+        return jsonify({'error': 'Username already exists'}), 400
+    
+    # Only allow admin users to create managers or other admins
+    if role in ['admin', 'manager']:
+        if not (current_user.is_authenticated and current_user.is_admin):
+            return jsonify({'error': 'Only admins can create admin or manager accounts'}), 403
+    
+    # If admin is creating account via this endpoint, create directly as User (auto-approved)
+    if current_user.is_authenticated and current_user.is_admin and role in ['admin', 'manager', 'user']:
+        user = User(username=username, role=role)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        return jsonify({'message': 'Account created and approved (admin created)'}), 201
+
+    # Otherwise create a PendingUser entry
+    pending = PendingUser(username=username, role=role)
+    pending.set_password(password)
+    db.session.add(pending)
+    db.session.commit()
+    return jsonify({'message': 'Account created. Awaiting admin approval.'}), 201
 @main.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
@@ -51,13 +115,16 @@ def login():
     
     user = User.query.filter_by(username=username).first()
     if not user or not user.check_password(password):
+        # hide whether user exists; return generic message
         return jsonify({'error': 'invalid credentials'}), 401
-    
+
     login_user(user)
     return jsonify({
-        'id': user.id, 
-        'username': user.username, 
-        'is_admin': user.is_admin
+        'id': user.id,
+        'username': user.username,
+        'role': user.role,
+        'is_admin': user.is_admin,
+        'is_manager': user.is_manager
     })
 
 @main.route('/api/logout', methods=['POST'])
@@ -71,8 +138,10 @@ def logout():
 def user_info():
     return jsonify({
         'id': current_user.id,
-        'username': current_user.username, 
-        'is_admin': current_user.is_admin
+        'username': current_user.username,
+        'role': current_user.role,
+        'is_admin': current_user.is_admin,
+        'is_manager': current_user.is_manager
     })
 
 # Services API
@@ -165,6 +234,11 @@ def delete_service(service_id):
 @login_required
 def get_service_categories():
     categories = ServiceCategory.query.all()
+    print("\n=== Service Categories from Database ===")
+    for c in categories:
+        print(f"ID: {c.id}, Name: {c.name}, Display Name: {c.display_name}")
+    print("=====================================\n")
+    
     return jsonify([{
         'id': c.id,
         'name': c.name,
@@ -205,52 +279,31 @@ def create_discount():
         return jsonify({'error': 'Admin access required'}), 403
     
     data = request.get_json() or {}
-    discount_id = data.get('id')
-    patient_category_id = data.get('patient_category_id')
-    service_category_id = data.get('service_category_id')
-    discount_type = data.get('discount_type')
-    discount_value = data.get('discount_value')
+    required_fields = ['patient_category_id', 'service_category_id', 'discount_type', 'discount_value']
     
-    if not all([patient_category_id, service_category_id, discount_type, discount_value is not None]):
+    if not all(data.get(field) is not None for field in required_fields):
         return jsonify({'error': 'All fields are required'}), 400
     
-    if discount_type not in ['percentage', 'flat']:
+    if data['discount_type'] not in ['percentage', 'flat']:
         return jsonify({'error': 'discount_type must be percentage or flat'}), 400
     
     try:
-        # If id provided, update that specific discount
-        if discount_id:
-            d = Discount.query.get(discount_id)
-            if not d:
-                return jsonify({'error': 'Discount not found'}), 404
-            d.patient_category_id = patient_category_id
-            d.service_category_id = service_category_id
-            d.discount_type = discount_type
-            d.discount_value = discount_value
-            db.session.commit()
-            return jsonify({'id': d.id, 'message': 'Discount updated successfully'})
-
-        # Otherwise, check if a discount exists for this patient+service category and upsert
         existing = Discount.query.filter_by(
-            patient_category_id=patient_category_id,
-            service_category_id=service_category_id
+            patient_category_id=data['patient_category_id'],
+            service_category_id=data['service_category_id']
         ).first()
         
         if existing:
-            existing.discount_type = discount_type
-            existing.discount_value = discount_value
-            db.session.commit()
-            return jsonify({'id': existing.id, 'message': 'Discount updated successfully'})
+            existing.discount_type = data['discount_type']
+            existing.discount_value = data['discount_value']
+            message = 'Discount updated successfully'
         else:
-            discount = Discount(
-                patient_category_id=patient_category_id,
-                service_category_id=service_category_id,
-                discount_type=discount_type,
-                discount_value=discount_value
-            )
-            db.session.add(discount)
-            db.session.commit()
-            return jsonify({'id': discount.id, 'message': 'Discount created successfully'}), 201
+            existing = Discount(**{k: data[k] for k in required_fields})
+            db.session.add(existing)
+            message = 'Discount created successfully'
+        
+        db.session.commit()
+        return jsonify({'id': existing.id, 'message': message})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -296,17 +349,12 @@ def bulk_upload_services():
     if not current_user.is_admin:
         return jsonify({'error': 'Admin access required'}), 403
     
-    data = request.get_json() or {}
-    csv_content = data.get('csv_content', '').strip()
-    
+    csv_content = request.get_json().get('csv_content', '').strip()
     if not csv_content:
         return jsonify({'error': 'csv_content is required'}), 400
     
     try:
-        # Get category mapping
-        categories = ServiceCategory.query.all()
-        category_map = {cat.name: cat.id for cat in categories}
-        
+        category_map = {cat.name: cat.id for cat in ServiceCategory.query.all()}
         csv_reader = csv.DictReader(io.StringIO(csv_content))
         success_count = 0
         errors = []
@@ -315,28 +363,18 @@ def bulk_upload_services():
             try:
                 name = row.get('name', '').strip()
                 category_name = row.get('category_name', '').strip()
-                cost_price = float(row.get('cost_price', 0))
-                mrp = float(row.get('mrp', 0))
-                is_daily_charge = row.get('is_daily_charge', '').strip().lower() in ['1', 'true', 'yes']
-                visits_per_day = int(row.get('visits_per_day', 1))
                 
-                if not name or not category_name:
-                    errors.append(f"Row {row_num}: Name and category are required")
+                if not name or not category_name or category_name not in category_map:
+                    errors.append(f"Row {row_num}: Invalid name or category")
                     continue
-                
-                if category_name not in category_map:
-                    errors.append(f"Row {row_num}: Invalid category '{category_name}'")
-                    continue
-                
-                category_id = category_map[category_name]
                 
                 service = Service(
                     name=name,
-                    category_id=category_id,
-                    cost_price=cost_price,
-                    mrp=mrp,
-                    is_daily_charge=is_daily_charge,
-                    visits_per_day=visits_per_day
+                    category_id=category_map[category_name],
+                    cost_price=float(row.get('cost_price', 0)),
+                    mrp=float(row.get('mrp', 0)),
+                    is_daily_charge=row.get('is_daily_charge', '').lower() in ['1', 'true', 'yes'],
+                    visits_per_day=int(row.get('visits_per_day', 1))
                 )
                 db.session.add(service)
                 success_count += 1
@@ -345,11 +383,7 @@ def bulk_upload_services():
                 errors.append(f"Row {row_num}: {str(e)}")
         
         db.session.commit()
-        return jsonify({
-            'success_count': success_count,
-            'errors': errors,
-            'message': f'Successfully uploaded {success_count} services'
-        })
+        return jsonify({'success_count': success_count, 'errors': errors})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
