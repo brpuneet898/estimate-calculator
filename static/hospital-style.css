@@ -54,6 +54,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 .alert { padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem; border: 1px solid; }
 .alert-error { background-color: hsl(0, 85%, 97%); border-color: var(--destructive); color: var(--destructive); }
 .alert-success { background-color: hsl(120, 85%, 97%); border-color: hsl(120, 85%, 60%); color: hsl(120, 85%, 30%); }
+.alert-info { background-color: hsl(217, 85%, 97%); border-color: hsl(217, 85%, 60%); color: hsl(217, 85%, 30%); }
 
 .text-center { text-align: center; } .text-muted { color: var(--muted-foreground); } .mb-4 { margin-bottom: 1rem; } .mb-6 { margin-bottom: 1.5rem; } .mt-4 { margin-top: 1rem; } .w-full { width: 100%; } .flex { display: flex; } .items-center { align-items: center; } .justify-between { justify-content: space-between; } .gap-4 { gap: 1rem; }
 

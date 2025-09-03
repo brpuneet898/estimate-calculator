@@ -87,9 +87,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok) {
                     showSuccess(data.message || 'Account created successfully!');
-                    // Only redirect if the user is auto-approved (admin created the account)
-                    if (!data.message.includes('approval')) {
+                    // Redirect to login for approval or to dashboard if auto-approved
+                    if (data.auto_approved) {
                         setTimeout(() => window.location.href = '/dashboard', 1500);
+                    } else {
+                        setTimeout(() => window.location.href = '/login', 2000);
                     }
                 } else {
                     showError(data.error || 'Failed to create account');

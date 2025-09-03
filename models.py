@@ -10,6 +10,8 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='user')  # 'admin', 'manager', or 'user'
+    approved = db.Column(db.Boolean, default=False, nullable=False)  # Admin approval status
+    rejected = db.Column(db.Boolean, default=False, nullable=False)  # Admin rejection status
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     @property
