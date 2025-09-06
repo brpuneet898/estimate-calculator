@@ -10,7 +10,14 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: var(--hospital-light); color: var(--foreground); line-height: 1.6; min-height: 100vh; }
+body { 
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+    background-color: var(--hospital-light); 
+    color: var(--foreground); 
+    line-height: 1.6; 
+    height: 100vh; 
+    overflow: hidden; /* Prevent body scrolling */
+}
 
 /* Header Styles */
 .site-header { background: white; border-bottom: 1px solid var(--border); box-shadow: var(--shadow-sm); position: sticky; top: 0; z-index: 100; }
@@ -112,3 +119,189 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 .estimate-line { display: flex; justify-content: space-between; padding: 0.25rem 0; }
 .estimate-total { border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.5rem; font-weight: 600; font-size: 1rem; }
 .loading-spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid var(--muted); border-top: 2px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+
+/* Fixed height cards with scrollable content */
+.dashboard-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+    height: calc(100vh - 4rem); /* Full screen minus header */
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem;
+    overflow: hidden; /* Prevent container scrolling */
+}
+
+.dashboard-card {
+    height: 100%; /* Full height of container */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    background: var(--card);
+}
+
+.card-header {
+    flex-shrink: 0;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+}
+
+.card-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    background: var(--card);
+}
+
+/* Specific containers for different sections */
+.patient-form-container {
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.services-container {
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.estimate-container {
+    height: 100%;
+    overflow-y: auto;
+    display: block; /* Changed from flex to block for simpler scrolling */
+}
+
+/* Services list specific scrolling */
+#services-list {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem;
+    min-height: 0; /* Allow flex item to shrink */
+}
+
+/* Service category tabs container */
+.service-tabs {
+    flex-shrink: 0;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Service content area */
+#service-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0; /* Allow flex item to shrink */
+}
+
+/* Service title and button area */
+.service-header {
+    flex-shrink: 0;
+    margin-bottom: 1rem;
+}
+
+/* Estimate details - removed individual scrolling */
+#estimate-details {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    background: var(--card);
+    margin-bottom: 1rem;
+}
+
+/* Estimate summary container - simplified for full content scrolling */
+#estimate-summary {
+    display: block; /* Simple block layout for natural flow */
+}
+
+/* Patient details section */
+.patient-details-section {
+    margin-bottom: 1rem;
+}
+
+/* Estimate content - removed individual scrolling for full card scroll */
+.estimate-content {
+    margin-bottom: 1rem; /* Add some spacing */
+}
+
+/* Action buttons */
+.estimate-actions {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Custom scrollbars for better UX */
+.card-content::-webkit-scrollbar,
+#services-list::-webkit-scrollbar,
+#estimate-details::-webkit-scrollbar {
+    width: 8px;
+}
+
+.card-content::-webkit-scrollbar-track,
+#services-list::-webkit-scrollbar-track,
+#estimate-details::-webkit-scrollbar-track {
+    background: var(--muted);
+    border-radius: 4px;
+}
+
+.card-content::-webkit-scrollbar-thumb,
+#services-list::-webkit-scrollbar-thumb,
+#estimate-details::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.card-content::-webkit-scrollbar-thumb:hover,
+#services-list::-webkit-scrollbar-thumb:hover,
+#estimate-details::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .dashboard-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        height: calc(100vh - 4rem); /* Maintain full height */
+    }
+    
+    .dashboard-card {
+        height: calc((100vh - 4rem - 2rem) / 3); /* Divide height among 3 cards */
+        min-height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-card {
+        height: calc((100vh - 4rem - 2rem) / 3); /* Divide height among 3 cards */
+        min-height: 250px;
+    }
+    
+    .dashboard-container {
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+    
+    .card-header {
+        padding: 1rem;
+    }
+    
+    .card-content {
+        padding: 1rem;
+    }
+}

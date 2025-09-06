@@ -78,3 +78,42 @@ class Discount(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     __table_args__ = (db.UniqueConstraint('patient_category_id', 'service_category_id'),)
+
+class SavedEstimate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    estimate_number = db.Column(db.String(20), unique=True, nullable=False)  # EST001, EST002, etc.
+    patient_name = db.Column(db.String(200), nullable=False)
+    patient_uhid = db.Column(db.String(50), nullable=True)
+    patient_category = db.Column(db.String(50), nullable=False)
+    length_of_stay = db.Column(db.Integer, nullable=False)
+    
+    # Financial summary
+    subtotal = db.Column(db.Numeric(10, 2), nullable=False)
+    total_discount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    final_total = db.Column(db.Numeric(10, 2), nullable=False)
+    
+    # Metadata
+    generated_by_role = db.Column(db.String(20), nullable=False)
+    generated_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # JSON field to store complete estimate data
+    estimate_data = db.Column(db.Text, nullable=False)  # JSON string of full estimate
+    
+    # Relationships
+    generated_by_user = db.relationship('User', backref='saved_estimates', lazy=True)
+
+class SavedEstimateService(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    saved_estimate_id = db.Column(db.Integer, db.ForeignKey('saved_estimate.id'), nullable=False)
+    service_id = db.Column(db.Integer, db.ForeignKey('service.id'), nullable=False)
+    service_name = db.Column(db.String(200), nullable=False)  # Store name at time of estimate
+    quantity = db.Column(db.Integer, nullable=False)
+    unit_price = db.Column(db.Numeric(10, 2), nullable=False)
+    line_total = db.Column(db.Numeric(10, 2), nullable=False)
+    discount_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    final_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    
+    # Relationships
+    saved_estimate = db.relationship('SavedEstimate', backref='estimate_services', lazy=True)
+    service = db.relationship('Service', backref='saved_estimate_services', lazy=True)

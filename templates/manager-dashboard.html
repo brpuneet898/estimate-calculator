@@ -20,7 +20,7 @@
                 <h1>Hospital Estimate Builder</h1>
             </div>
             <nav class="nav-links">
-                <button class="btn btn-outline">
+                <button class="btn btn-outline" onclick="openReportsModal()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14,2 14,8 20,8"/>
@@ -57,102 +57,110 @@
     </header>
 
     <!-- Main Content -->
-    <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 2rem 1rem;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
-            
-            <!-- Left Column - Patient Form -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Patient Information</h3>
-                </div>
-                <form id="patient-form">
-                    <div class="form-group">
-                        <label class="form-label">Patient Name</label>
-                        <input type="text" id="patient-name" class="form-input" placeholder="Enter patient name">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">UHID</label>
-                        <input type="text" id="patient-uhid" class="form-input" placeholder="Enter UHID">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Length of Stay (Days)</label>
-                        <input type="number" id="patient-stay" class="form-input" value="1" min="1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Category</label>
-                        <select id="patient-category" class="form-input">
-                            <option value="">Select Category</option>
-                            <option value="charity">Charity</option>
-                            <option value="general_nc_a">General NC A</option>
-                            <option value="general_nc_b">General NC B</option>
-                            <option value="general">General</option>
-                            <option value="deluxe">Deluxe</option>
-                            <option value="super_deluxe">Super Deluxe</option>
-                        </select>
-                    </div>
-                </form>
+    <div class="dashboard-container">
+        
+        <!-- Left Column - Patient Form -->
+        <div class="dashboard-card card">
+            <div class="card-header">
+                <h3 class="card-title">Patient Information</h3>
             </div>
-
-            <!-- Middle Column - Services -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Services & Procedures</h3>
-                </div>
-                
-                <!-- Service Category Tabs -->
-                <div class="service-tabs" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;" id="service-category-tabs">
-                    <!-- Service category tabs will be loaded dynamically -->
-                </div>
-
-                <!-- Service Content -->
-                <div id="service-content">
-                    <div class="flex justify-between items-center mb-4">
-                        <h4 id="service-category-title">Laboratory Services</h4>
-                        <button class="btn btn-primary btn-sm" onclick="openServiceModal()">Add Service</button>
-                    </div>
-                    
-                    <div id="services-list">
-                        <!-- Services will be loaded here -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Column - Estimate Summary -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Estimate Summary</h3>
-                </div>
-                
-                <div id="estimate-summary">
-                    <div class="mb-4">
-                        <h4 style="font-weight: 600; margin-bottom: 1rem;">Patient Details</h4>
-                        <div style="font-size: 0.875rem; color: var(--muted-foreground);">
-                            <div><strong>Name:</strong> <span id="summary-name">Not specified</span></div>
-                            <div><strong>UHID:</strong> <span id="summary-uhid">Not specified</span></div>
-                            <div><strong>Category:</strong> <span id="summary-category">Not selected</span></div>
-                            <div><strong>Stay:</strong> <span id="summary-stay">1</span> days</div>
+            <div class="card-content">
+                <div class="patient-form-container">
+                    <form id="patient-form">
+                        <div class="form-group">
+                            <label class="form-label">Patient Name</label>
+                            <input type="text" id="patient-name" class="form-input" placeholder="Enter patient name">
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">UHID</label>
+                            <input type="text" id="patient-uhid" class="form-input" placeholder="Enter UHID">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Length of Stay (Days)</label>
+                            <input type="number" id="patient-stay" class="form-input" value="1" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select id="patient-category" class="form-input">
+                                <option value="">Select Category</option>
+                                <option value="charity">Charity</option>
+                                <option value="general_nc_a">General NC A</option>
+                                <option value="general_nc_b">General NC B</option>
+                                <option value="general">General</option>
+                                <option value="deluxe">Deluxe</option>
+                                <option value="super_deluxe">Super Deluxe</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Column - Services -->
+        <div class="dashboard-card card">
+            <div class="card-header">
+                <h3 class="card-title">Services & Procedures</h3>
+            </div>
+            <div class="card-content">
+                <div class="services-container">
+                    <!-- Service Category Tabs -->
+                    <div class="service-tabs" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;" id="service-category-tabs">
+                        <!-- Service category tabs will be loaded dynamically -->
                     </div>
-                    
-                    <div id="estimate-details" style="display: none;">
-                        <!-- Estimate breakdown will appear here -->
-                    </div>
-                    
-                    <div class="text-center text-muted" id="estimate-placeholder">
-                        Complete patient information and select services to see estimate
-                    </div>
-                    
-                    <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                        <button class="btn btn-primary w-full" id="generate-estimate-btn">Generate Estimate</button>
-                        <button class="btn btn-outline w-full" onclick="printEstimate()">Print Estimate</button>
-                        <button class="btn btn-outline w-full">Save Estimate</button>
+
+                    <!-- Service Content -->
+                    <div id="service-content">
+                        <div class="flex justify-between items-center mb-4 service-header">
+                            <h4 id="service-category-title">Laboratory Services</h4>
+                            <button class="btn btn-primary btn-sm" onclick="openServiceModal()">Add Service</button>
+                        </div>
+                        
+                        <div id="services-list">
+                            <!-- Services will be loaded here -->
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Masters Modal (same as admin but without User Approvals tab) -->
+        <!-- Right Column - Estimate Summary -->
+        <div class="dashboard-card card">
+            <div class="card-header">
+                <h3 class="card-title">Estimate Summary</h3>
+            </div>
+            <div class="card-content">
+                <div class="estimate-container">
+                    <div id="estimate-summary">
+                        <div class="patient-details-section">
+                            <h4 style="font-weight: 600; margin-bottom: 1rem;">Patient Details</h4>
+                            <div style="font-size: 0.875rem; color: var(--muted-foreground);">
+                                <div><strong>Name:</strong> <span id="summary-name">Not specified</span></div>
+                                <div><strong>UHID:</strong> <span id="summary-uhid">Not specified</span></div>
+                                <div><strong>Category:</strong> <span id="summary-category">Not selected</span></div>
+                                <div><strong>Stay:</strong> <span id="summary-stay">1</span> days</div>
+                            </div>
+                        </div>
+                        
+                        <div class="estimate-content">
+                            <div id="estimate-details" style="display: none;">
+                                <!-- Estimate breakdown will appear here -->
+                            </div>
+                            
+                            <div class="text-center text-muted" id="estimate-placeholder">
+                                Complete patient information and select services to see estimate
+                            </div>
+                        </div>
+                        
+                        <div class="estimate-actions">
+                            <button class="btn btn-primary w-full" id="generate-estimate-btn">Generate Estimate</button>
+                            <button class="btn btn-outline w-full" onclick="printEstimate()">Print Estimate</button>
+                            <button class="btn btn-outline w-full" onclick="saveEstimate()">Save Estimate</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>    <!-- Masters Modal (same as admin but without User Approvals tab) -->
     <div id="masters-modal" class="modal" style="display: none;">
         <div class="modal-content" style="max-width: 900px; width: 95%;">
             <div class="modal-header">
@@ -164,7 +172,7 @@
             <div class="tab-navigation" role="tablist" aria-label="Masters tabs" style="border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">
                 <button class="tab-btn active" data-tab="services" role="tab" aria-controls="services-tab" aria-selected="true">Services</button>
                 <button class="tab-btn" data-tab="discounts" role="tab" aria-controls="discounts-tab" aria-selected="false">Discounts</button>
-                <button class="tab-btn" data-tab="bulk-upload" role="tab" aria-controls="bulk-upload-tab" aria-selected="false">Bulk Upload</button>
+                <button class="tab-btn" data-tab="bulk-upload" role="tab" aria-controls="bulk-upload-tab" aria-selected="false">Bulk Upload Services</button>
             </div>
             
             <!-- Services Tab -->
@@ -231,26 +239,101 @@
 
             <!-- Discounts Tab -->
             <div id="discounts-tab" class="tab-content" role="tabpanel" aria-hidden="true" style="display: none;">
-                <div class="flex justify-between items-center mb-4">
-                    <h4>Discounts Management</h4>
-                    <button id="add-discount-btn" class="btn btn-primary">Add Discount</button>
+                <h4 style="margin-bottom: 1rem;">Discounts Management</h4>
+                
+                <!-- Sub-tab Navigation for Discounts -->
+                <div class="sub-tab-navigation" style="border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">
+                    <button class="sub-tab-btn active" data-subtab="manage-discounts" style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; border-bottom: 2px solid var(--primary);">Manage Discounts</button>
+                    <button class="sub-tab-btn" data-subtab="bulk-upload-discounts" style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent;">Bulk Upload</button>
                 </div>
                 
-                <div class="table-container" style="overflow-x: auto;">
-                    <table id="discounts-table" style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid var(--border);">
-                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Patient Category</th>
-                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Service Category</th>
-                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Discount Type</th>
-                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Discount Value</th>
-                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="discounts-tbody">
-                            <!-- Discounts will be loaded here -->
-                        </tbody>
-                    </table>
+                <!-- Manage Discounts Sub-tab -->
+                <div id="manage-discounts-subtab" class="sub-tab-content" style="display: block;">
+                    <div class="flex justify-between items-center mb-4">
+                        <h5 style="margin: 0;">Current Discounts</h5>
+                        <button id="add-discount-btn" class="btn btn-primary">Add Discount</button>
+                    </div>
+                    
+                    <div class="table-container" style="overflow-x: auto; max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius);">
+                        <table id="discounts-table" style="width: 100%; border-collapse: collapse;">
+                            <thead style="position: sticky; top: 0; background: var(--background); z-index: 10;">
+                                <tr style="border-bottom: 1px solid var(--border);">
+                                    <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Patient Category</th>
+                                    <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Service Category</th>
+                                    <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Discount Type</th>
+                                    <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Discount Value</th>
+                                    <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="discounts-tbody">
+                                <!-- Discounts will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Bulk Upload Discounts Sub-tab -->
+                <div id="bulk-upload-discounts-subtab" class="sub-tab-content" style="display: none;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div>
+                            <div class="form-group">
+                                <label class="form-label">Upload File</label>
+                                
+                                <!-- File input container -->
+                                <div id="discount-file-input-container" style="display: block;">
+                                    <input type="file" id="discount-csv-file-input" accept=".csv,.xlsx,.xls" style="display: none;">
+                                    <button type="button" class="btn btn-outline" onclick="document.getElementById('discount-csv-file-input').click();" style="width: 100%; padding: 2rem; border: 2px dashed var(--border); background: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            <polyline points="14,2 14,8 20,8"/>
+                                            <line x1="12" y1="11" x2="12" y2="17"/>
+                                            <polyline points="9,14 12,11 15,14"/>
+                                        </svg>
+                                        <span>Choose CSV or Excel file</span>
+                                        <small style="color: var(--muted-foreground);">Supports .csv, .xlsx, .xls files</small>
+                                    </button>
+                                </div>
+                                
+                                <!-- Selected file container -->
+                                <div id="discount-file-selected-container" style="display: none;">
+                                    <div style="padding: 1rem; border: 2px solid var(--primary); border-radius: var(--radius); background: var(--primary-foreground); display: flex; align-items: center; justify-content: space-between;">
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                                <polyline points="14,2 14,8 20,8"/>
+                                            </svg>
+                                            <span id="discount-selected-file-name">No file selected</span>
+                                        </div>
+                                        <button type="button" class="btn btn-outline" onclick="removeDiscountFile()" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                <button id="upload-discount-btn" class="btn btn-primary">Upload Discounts</button>
+                                <button id="download-discount-template-btn" class="btn btn-outline">Download Template</button>
+                            </div>
+                            <div id="discount-upload-result" style="margin-top: 1rem;"></div>
+                        </div>
+                        
+                        <div>
+                            <h5 style="font-weight: 600; margin-bottom: 1rem;">CSV Format</h5>
+                            <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius); font-family: monospace; font-size: 0.875rem;">
+                                <strong>Required columns:</strong><br>
+                                • patient_category - Patient Category<br>
+                                • service_category - Service Category<br>
+                                • discount_type - Discount Type (percentage/fixed)<br>
+                                • discount_value - Discount Value<br><br>
+                                
+                                <strong>Example:</strong><br>
+                                patient_category,service_category,discount_type,discount_value<br>
+                                charity,laboratory,percentage,10<br>
+                                general,nursing,fixed,50
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -261,14 +344,40 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
                     <div>
                         <div class="form-group">
-                            <label class="form-label">CSV Content</label>
-                            <textarea 
-                                id="csv-content" 
-                                class="form-input" 
-                                rows="8" 
-                                placeholder="Paste your CSV content here..."
-                            ></textarea>
+                            <label class="form-label">Upload File</label>
+                            
+                            <!-- File input container -->
+                            <div id="file-input-container" style="display: block;">
+                                <input type="file" id="csv-file-input" accept=".csv,.xlsx,.xls" style="display: none;">
+                                <button type="button" class="btn btn-outline" onclick="document.getElementById('csv-file-input').click();" style="width: 100%; padding: 2rem; border: 2px dashed var(--border); background: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14,2 14,8 20,8"/>
+                                        <line x1="12" y1="11" x2="12" y2="17"/>
+                                        <polyline points="9,14 12,11 15,14"/>
+                                    </svg>
+                                    <span>Choose CSV or Excel file</span>
+                                    <small style="color: var(--muted-foreground);">Supports .csv, .xlsx, .xls files</small>
+                                </button>
+                            </div>
+                            
+                            <!-- Selected file container -->
+                            <div id="file-selected-container" style="display: none;">
+                                <div style="padding: 1rem; border: 2px solid var(--primary); border-radius: var(--radius); background: var(--primary-foreground); display: flex; align-items: center; justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            <polyline points="14,2 14,8 20,8"/>
+                                        </svg>
+                                        <span id="selected-file-name">No file selected</span>
+                                    </div>
+                                    <button type="button" class="btn btn-outline" onclick="removeFile()" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
                         </div>
+                        
                         <div class="flex gap-2">
                             <button id="upload-csv-btn" class="btn btn-primary">Upload Services</button>
                             <button id="download-template-btn" class="btn btn-outline">Download Template</button>
@@ -336,6 +445,90 @@
                     <button type="submit" class="btn btn-primary">Save Discount</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Service Modal -->
+    <div id="service-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="service-modal-title">Add Service</h3>
+                <button onclick="closeServiceModal()" class="btn btn-outline" style="padding: 0.5rem;">×</button>
+            </div>
+            <form id="service-modal-form">
+                <input type="hidden" id="service-modal-id" value="">
+                <div class="form-group">
+                    <label class="form-label">Service Name</label>
+                    <input type="text" id="service-modal-name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Service Category</label>
+                    <select id="service-modal-category" class="form-input" required>
+                        <option value="">Select Category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cost Price (₹)</label>
+                    <input type="number" id="service-modal-cost" class="form-input" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">MRP (₹)</label>
+                    <input type="number" id="service-modal-mrp" class="form-input" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Daily Charge</label>
+                    <select id="service-modal-daily" class="form-input" required>
+                        <option value="">Select Option</option>
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Visits Per Day</label>
+                    <input type="number" id="service-modal-visits" class="form-input" value="1" min="1" required>
+                </div>
+                <div class="flex gap-2 justify-end" style="gap: 1rem;">
+                    <button type="button" onclick="closeServiceModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="service-modal-submit-btn">Add Service</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reports Modal -->
+    <div id="reports-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 1200px; width: 95%;">
+            <div class="modal-header">
+                <h2>My Saved Estimates</h2>
+                <button onclick="closeReportsModal()" class="btn btn-outline" style="padding: 0.5rem; width: auto;">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="reports-loading" style="text-align: center; padding: 2rem;">
+                    <div>Loading saved estimates...</div>
+                </div>
+                <div id="reports-content" style="display: none;">
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                            <thead>
+                                <tr style="background-color: var(--muted); border-bottom: 1px solid var(--border);">
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">Estimate No.</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">Patient Name</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">UHID</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">Total Amount</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">Date Created</th>
+                                    <th style="padding: 0.75rem; text-align: left;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-table-body">
+                                <!-- Estimates will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="no-estimates" style="text-align: center; padding: 2rem; display: none;">
+                        <div style="color: var(--muted-foreground);">No saved estimates found.</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
