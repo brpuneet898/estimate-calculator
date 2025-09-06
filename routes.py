@@ -178,8 +178,8 @@ def get_services():
 @main.route('/api/services', methods=['POST'])
 @login_required
 def create_service():
-    if not current_user.is_admin:
-        return jsonify({'error': 'Admin access required'}), 403
+    if not (current_user.is_admin or current_user.is_manager):
+        return jsonify({'error': 'Admin or manager access required'}), 403
     
     data = request.get_json() or {}
     name = data.get('name', '').strip()
@@ -210,8 +210,8 @@ def create_service():
 @main.route('/api/services/<int:service_id>', methods=['PUT'])
 @login_required
 def update_service(service_id):
-    if not current_user.is_admin:
-        return jsonify({'error': 'Admin access required'}), 403
+    if not (current_user.is_admin or current_user.is_manager):
+        return jsonify({'error': 'Admin or manager access required'}), 403
     
     service = Service.query.get_or_404(service_id)
     data = request.get_json() or {}
@@ -232,8 +232,8 @@ def update_service(service_id):
 @main.route('/api/services/<int:service_id>', methods=['DELETE'])
 @login_required
 def delete_service(service_id):
-    if not current_user.is_admin:
-        return jsonify({'error': 'Admin access required'}), 403
+    if not (current_user.is_admin or current_user.is_manager):
+        return jsonify({'error': 'Admin or manager access required'}), 403
     
     service = Service.query.get_or_404(service_id)
     try:
@@ -289,8 +289,8 @@ def get_discounts():
 @main.route('/api/discounts', methods=['POST'])
 @login_required
 def create_discount():
-    if not current_user.is_admin:
-        return jsonify({'error': 'Admin access required'}), 403
+    if not (current_user.is_admin or current_user.is_manager):
+        return jsonify({'error': 'Admin or manager access required'}), 403
     
     data = request.get_json() or {}
     required_fields = ['patient_category_id', 'service_category_id', 'discount_type', 'discount_value']
@@ -324,8 +324,8 @@ def create_discount():
 @main.route('/api/discounts/<int:discount_id>', methods=['DELETE'])
 @login_required
 def delete_discount(discount_id):
-    if not current_user.is_admin:
-        return jsonify({'error': 'Admin access required'}), 403
+    if not (current_user.is_admin or current_user.is_manager):
+        return jsonify({'error': 'Admin or manager access required'}), 403
     
     discount = Discount.query.get_or_404(discount_id)
     try:
@@ -339,8 +339,8 @@ def delete_discount(discount_id):
 @main.route('/api/discounts/<int:discount_id>', methods=['PUT'])
 @login_required
 def update_discount(discount_id):
-    if not current_user.is_admin:
-        return jsonify({'error': 'Admin access required'}), 403
+    if not (current_user.is_admin or current_user.is_manager):
+        return jsonify({'error': 'Admin or manager access required'}), 403
 
     discount = Discount.query.get_or_404(discount_id)
     data = request.get_json() or {}
@@ -360,8 +360,8 @@ def update_discount(discount_id):
 @main.route('/api/bulk-upload/services', methods=['POST'])
 @login_required
 def bulk_upload_services():
-    if not current_user.is_admin:
-        return jsonify({'error': 'Admin access required'}), 403
+    if not (current_user.is_admin or current_user.is_manager):
+        return jsonify({'error': 'Admin or manager access required'}), 403
     
     csv_content = request.get_json().get('csv_content', '').strip()
     if not csv_content:
