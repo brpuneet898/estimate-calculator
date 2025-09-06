@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user, login_user, logout_user
 from models import User, Service, ServiceCategory, PatientCategory, Discount, db
+from datetime import datetime,timedelta
 import csv
 import io
 
@@ -408,3 +409,111 @@ def get_services_template():
     template += "Complete Blood Count,laboratory,200.00,300.00,false,1\n"
     template += "General Nursing Care,nursing,500.00,800.00,true,3\n"
     return jsonify({'template': template})
+
+@main.route('/api/generate-estimate', methods=['POST'])
+@login_required
+def generate_estimate():
+    """Generate detailed estimate with invoice format"""
+    try:
+        data = request.get_json() or {}
+        
+        # Validate required fields
+        required_fields = ['patient_name', 'patient_category', 'length_of_stay', 'selected_services']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+        if missing_fields:
+            return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
+        
+        patient_name = data['patient_name']
+        patient_uhid = data.get('patient_uhid', 'Not provided')
+        patient_category = data['patient_category']
+        length_of_stay = int(data['length_of_stay'])
+        selected_services = data['selected_services']  # List of service IDs
+        
+        if length_of_stay < 1:
+            return jsonify({'error': 'Length of stay must be at least 1 day'}), 400
+        
+        # Get patient category details
+        patient_cat = PatientCategory.query.filter_by(name=patient_category).first()
+        if not patient_cat:
+            return jsonify({'error': 'Invalid patient category'}), 400
+        
+        # Get selected services
+        services = Service.query.filter(Service.id.in_(selected_services)).all()
+        if not services:
+            return jsonify({'error': 'No valid services selected'}), 400
+        
+        # Calculate estimate
+        estimate_lines = []
+        subtotal = 0
+        total_discount = 0
+        
+        for service in services:
+            # Get applicable discount for this service category and patient category
+            discount = Discount.query.filter_by(
+                patient_category_id=patient_cat.id,
+                service_category_id=service.category_id
+            ).first()
+            
+            # Calculate base cost
+            if service.is_daily_charge:
+                quantity = length_of_stay * service.visits_per_day
+                unit_description = f"{service.visits_per_day} visits/day × {length_of_stay} days"
+            else:
+                quantity = 1
+                unit_description = "One-time charge"
+            
+            line_total = float(service.mrp) * quantity
+            
+            # Apply discount if applicable
+            discount_amount = 0
+            discount_percentage = 0
+            if discount:
+                if discount.discount_type == 'percentage':
+                    discount_percentage = float(discount.discount_value)
+                    discount_amount = line_total * (discount_percentage / 100)
+                else:  # flat discount
+                    discount_amount = float(discount.discount_value) * quantity
+                    discount_percentage = (discount_amount / line_total * 100) if line_total > 0 else 0
+            
+            final_amount = line_total - discount_amount
+            
+            estimate_lines.append({
+                'service_name': service.name,
+                'category': service.category.display_name,
+                'unit_price': float(service.mrp),
+                'quantity': quantity,
+                'unit_description': unit_description,
+                'line_total': line_total,
+                'discount_percentage': round(discount_percentage, 2),
+                'discount_amount': round(discount_amount, 2),
+                'final_amount': round(final_amount, 2)
+            })
+            
+            subtotal += line_total
+            total_discount += discount_amount
+        
+        final_total = subtotal - total_discount
+        
+        # Prepare estimate response
+        estimate = {
+            'patient_details': {
+                'name': patient_name,
+                'uhid': patient_uhid,
+                'category': patient_cat.display_name,
+                'length_of_stay': length_of_stay
+            },
+            'estimate_lines': estimate_lines,
+            'summary': {
+                'subtotal': round(subtotal, 2),
+                'total_discount': round(total_discount, 2),
+                'final_total': round(final_total, 2),
+                'discount_percentage': round((total_discount / subtotal * 100) if subtotal > 0 else 0, 2)
+            },
+            'generated_at': (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime('%Y-%m-%d %H:%M:%S'),
+            'generated_by': current_user.username
+        }
+        
+        return jsonify(estimate)
+        
+    except Exception as e:
+        return jsonify({'error': f'Error generating estimate: {str(e)}'}), 500
