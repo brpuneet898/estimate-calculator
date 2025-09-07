@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user, login_user, logout_user
-from models import User, Service, ServiceCategory, PatientCategory, Discount, db
-from datetime import datetime,timedelta
+from models import User, Service, ServiceCategory, PatientCategory, Discount, SavedEstimate, SavedEstimateService, db
+from datetime import datetime, timedelta
 import csv
 import io
+import json
+import pandas as pd
 
 main = Blueprint('main', __name__)
 
@@ -364,32 +366,69 @@ def bulk_upload_services():
     if not (current_user.is_admin or current_user.is_manager):
         return jsonify({'error': 'Admin or manager access required'}), 403
     
-    csv_content = request.get_json().get('csv_content', '').strip()
-    if not csv_content:
-        return jsonify({'error': 'csv_content is required'}), 400
+    # Check if a file was uploaded
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Check file extension
+    allowed_extensions = ['.csv', '.xlsx', '.xls']
+    file_extension = '.' + file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    if file_extension not in allowed_extensions:
+        return jsonify({'error': 'Only CSV (.csv) and Excel (.xlsx, .xls) files are allowed'}), 400
     
     try:
+        # Read file content based on file type
+        if file_extension == '.csv':
+            # Read CSV file
+            content = file.read().decode('utf-8')
+            csv_reader = csv.DictReader(io.StringIO(content))
+            rows = list(csv_reader)
+        else:
+            # Read Excel file
+            df = pd.read_excel(file)
+            rows = df.to_dict('records')
+        
+        # Validate required columns
+        required_columns = ['name', 'category_name', 'cost_price', 'mrp', 'is_daily_charge']
+        if not rows:
+            return jsonify({'error': 'File is empty or has no data rows'}), 400
+        
+        missing_columns = []
+        for col in required_columns:
+            if col not in rows[0]:
+                missing_columns.append(col)
+        
+        if missing_columns:
+            return jsonify({'error': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+        
+        # Process data
         category_map = {cat.name: cat.id for cat in ServiceCategory.query.all()}
-        csv_reader = csv.DictReader(io.StringIO(csv_content))
         success_count = 0
         errors = []
         
-        for row_num, row in enumerate(csv_reader, start=2):
+        for row_num, row in enumerate(rows, start=2):
             try:
-                name = row.get('name', '').strip()
-                category_name = row.get('category_name', '').strip()
+                name = str(row.get('name', '')).strip()
+                category_name = str(row.get('category_name', '')).strip()
                 
                 if not name or not category_name or category_name not in category_map:
-                    errors.append(f"Row {row_num}: Invalid name or category")
+                    errors.append(f"Row {row_num}: Invalid name or category '{category_name}'")
                     continue
+                
+                # Convert boolean values
+                is_daily_charge = str(row.get('is_daily_charge', '')).lower() in ['1', 'true', 'yes', 'True', '1.0']
                 
                 service = Service(
                     name=name,
                     category_id=category_map[category_name],
                     cost_price=float(row.get('cost_price', 0)),
                     mrp=float(row.get('mrp', 0)),
-                    is_daily_charge=row.get('is_daily_charge', '').lower() in ['1', 'true', 'yes'],
-                    visits_per_day=int(row.get('visits_per_day', 1))
+                    is_daily_charge=is_daily_charge,
+                    visits_per_day=int(float(row.get('visits_per_day', 1)))
                 )
                 db.session.add(service)
                 success_count += 1
@@ -397,10 +436,18 @@ def bulk_upload_services():
             except Exception as e:
                 errors.append(f"Row {row_num}: {str(e)}")
         
-        db.session.commit()
-        return jsonify({'success_count': success_count, 'errors': errors})
+        if success_count > 0:
+            db.session.commit()
+        
+        return jsonify({
+            'success_count': success_count, 
+            'errors': errors,
+            'message': f'Successfully processed {success_count} services'
+        })
+        
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        db.session.rollback()
+        return jsonify({'error': f'Error processing file: {str(e)}'}), 400
 
 @main.route('/api/bulk-upload/services/template', methods=['GET'])
 @login_required
@@ -408,6 +455,141 @@ def get_services_template():
     template = "name,category_name,cost_price,mrp,is_daily_charge,visits_per_day\n"
     template += "Complete Blood Count,laboratory,200.00,300.00,false,1\n"
     template += "General Nursing Care,nursing,500.00,800.00,true,3\n"
+    return jsonify({'template': template})
+
+@main.route('/api/bulk-upload/discounts', methods=['POST'])
+@login_required
+def bulk_upload_discounts():
+    """Bulk upload discounts from CSV/Excel file"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Read file content
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(file)
+        elif file.filename.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(file)
+        else:
+            return jsonify({'error': 'Invalid file format. Please upload CSV or Excel file.'}), 400
+        
+        # Convert to list of dictionaries
+        rows = df.to_dict('records')
+        
+        if not rows:
+            return jsonify({'error': 'File is empty'}), 400
+        
+        # Validate required columns
+        required_columns = ['patient_category', 'service_category', 'discount_type', 'discount_value']
+        missing_columns = []
+        for col in required_columns:
+            if col not in rows[0]:
+                missing_columns.append(col)
+        
+        if missing_columns:
+            return jsonify({'error': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+        
+        # Get existing categories for validation
+        service_categories = {cat.name: cat.id for cat in ServiceCategory.query.all()}
+        patient_categories = {cat.name: cat.id for cat in PatientCategory.query.all()}
+        
+        success_count = 0
+        errors = []
+        
+        for row_num, row in enumerate(rows, start=2):
+            try:
+                patient_category = str(row.get('patient_category', '')).strip()
+                service_category = str(row.get('service_category', '')).strip()
+                discount_type = str(row.get('discount_type', '')).strip().lower()
+                discount_value = row.get('discount_value', 0)
+                
+                # Validate patient category
+                if patient_category not in patient_categories:
+                    errors.append(f"Row {row_num}: Invalid patient category '{patient_category}'. Valid options: {list(patient_categories.keys())}")
+                    continue
+                
+                # Validate service category
+                if service_category not in service_categories:
+                    errors.append(f"Row {row_num}: Invalid service category '{service_category}'. Valid options: {list(service_categories.keys())}")
+                    continue
+                
+                # Validate discount type
+                if discount_type not in ['percentage', 'fixed']:
+                    errors.append(f"Row {row_num}: Discount type must be 'percentage' or 'fixed'")
+                    continue
+                
+                # Validate discount value
+                try:
+                    discount_value = float(discount_value)
+                    if discount_value < 0:
+                        errors.append(f"Row {row_num}: Discount value cannot be negative")
+                        continue
+                except (ValueError, TypeError):
+                    errors.append(f"Row {row_num}: Invalid discount value")
+                    continue
+                
+                # Check if discount already exists
+                existing_discount = Discount.query.filter_by(
+                    patient_category_id=patient_categories[patient_category],
+                    service_category_id=service_categories[service_category]
+                ).first()
+                
+                if existing_discount:
+                    # Update existing discount
+                    existing_discount.discount_type = discount_type
+                    existing_discount.discount_value = discount_value
+                else:
+                    # Create new discount
+                    discount = Discount(
+                        patient_category_id=patient_categories[patient_category],
+                        service_category_id=service_categories[service_category],
+                        discount_type=discount_type,
+                        discount_value=discount_value
+                    )
+                    db.session.add(discount)
+                
+                success_count += 1
+                
+            except Exception as e:
+                errors.append(f"Row {row_num}: {str(e)}")
+        
+        if success_count > 0:
+            db.session.commit()
+        
+        return jsonify({
+            'success_count': success_count, 
+            'errors': errors,
+            'message': f'Successfully processed {success_count} discounts'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error processing file: {str(e)}'}), 400
+
+@main.route('/api/bulk-upload/discounts/template', methods=['GET'])
+@login_required
+def get_discounts_template():
+    # Get actual patient and service categories from database
+    patient_categories = [cat.name for cat in PatientCategory.query.all()]
+    service_categories = [cat.name for cat in ServiceCategory.query.all()]
+    
+    # Create template with actual category names
+    template = "patient_category,service_category,discount_type,discount_value\n"
+    
+    # Add examples using actual categories if available
+    if patient_categories and service_categories:
+        template += f"{patient_categories[0]},{service_categories[0]},percentage,10\n"
+        if len(patient_categories) > 1 and len(service_categories) > 1:
+            template += f"{patient_categories[1]},{service_categories[1]},fixed,50\n"
+    else:
+        # Fallback examples
+        template += "charity,laboratory,percentage,10\n"
+        template += "general,nursing,fixed,50\n"
+    
     return jsonify({'template': template})
 
 @main.route('/api/generate-estimate', methods=['POST'])
@@ -510,10 +692,207 @@ def generate_estimate():
                 'discount_percentage': round((total_discount / subtotal * 100) if subtotal > 0 else 0, 2)
             },
             'generated_at': (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime('%Y-%m-%d %H:%M:%S'),
-            'generated_by': current_user.username
+            'generated_by': current_user.role.capitalize()
         }
         
         return jsonify(estimate)
         
     except Exception as e:
         return jsonify({'error': f'Error generating estimate: {str(e)}'}), 500
+
+@main.route('/api/save-estimate', methods=['POST'])
+@login_required
+def save_estimate():
+    """Save estimate to database"""
+    try:
+        data = request.get_json() or {}
+        
+        # Validate required fields
+        required_fields = ['patient_name', 'patient_category', 'length_of_stay', 'estimate_data']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+        if missing_fields:
+            return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
+        
+        estimate_data = data['estimate_data']
+        
+        # Generate estimate number
+        last_estimate = SavedEstimate.query.order_by(SavedEstimate.id.desc()).first()
+        if last_estimate:
+            last_number = int(last_estimate.estimate_number[3:])  # Remove 'EST' prefix
+            new_number = f"EST{last_number + 1:03d}"
+        else:
+            new_number = "EST001"
+        
+        # Create saved estimate record
+        saved_estimate = SavedEstimate(
+            estimate_number=new_number,
+            patient_name=data['patient_name'],
+            patient_uhid=data.get('patient_uhid', ''),
+            patient_category=data['patient_category'],
+            length_of_stay=int(data['length_of_stay']),
+            subtotal=float(estimate_data['summary']['subtotal']),
+            total_discount=float(estimate_data['summary']['total_discount']),
+            final_total=float(estimate_data['summary']['final_total']),
+            generated_by_role=current_user.role,
+            generated_by_user_id=current_user.id,
+            estimate_data=json.dumps(estimate_data)
+        )
+        
+        db.session.add(saved_estimate)
+        db.session.flush()  # Get the ID for the estimate
+        
+        # Save individual services
+        for line in estimate_data['estimate_lines']:
+            service_record = SavedEstimateService(
+                saved_estimate_id=saved_estimate.id,
+                service_id=line.get('service_id', 0),  # May not be available in frontend
+                service_name=line['service_name'],
+                quantity=line['quantity'],
+                unit_price=float(line['unit_price']),
+                line_total=float(line['line_total']),
+                discount_amount=float(line['discount_amount']),
+                final_amount=float(line['final_amount'])
+            )
+            db.session.add(service_record)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Estimate saved successfully',
+            'estimate_number': new_number,
+            'estimate_id': saved_estimate.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error saving estimate: {str(e)}'}), 500
+
+@main.route('/api/saved-estimates', methods=['GET'])
+@login_required
+def get_saved_estimates():
+    """Get list of saved estimates"""
+    try:
+        print(f"\n=== SAVED ESTIMATES API CALLED ===")
+        print(f"Current user: {current_user.username} (ID: {current_user.id})")
+        print(f"User role: {current_user.role}")
+        print(f"Is admin: {current_user.is_admin}")
+        
+        # Check if admin wants to view all estimates
+        view_all = request.args.get('view_all', 'false').lower() == 'true'
+        print(f"View all parameter: {view_all}")
+        
+        # Check total estimates in database
+        total_estimates = SavedEstimate.query.count()
+        print(f"Total estimates in database: {total_estimates}")
+        
+        # Admin can choose to see all estimates or just their own
+        # Managers and Users only see their own estimates  
+        if current_user.is_admin and view_all:
+            print("Admin viewing ALL estimates")
+            estimates = SavedEstimate.query.order_by(SavedEstimate.created_at.desc()).all()
+        else:
+            # Default behavior: show only current user's estimates
+            print(f"Viewing estimates for user ID: {current_user.id}")
+            estimates = SavedEstimate.query.filter_by(generated_by_user_id=current_user.id).order_by(SavedEstimate.created_at.desc()).all()
+        
+        print(f"Found {len(estimates)} estimates for this query")
+        
+        # Debug: Print details of each estimate
+        for est in estimates:
+            print(f"  Estimate {est.id}: {est.estimate_number} by user {est.generated_by_user_id}")
+        
+        result = [{
+            'id': est.id,
+            'estimate_number': est.estimate_number,
+            'patient_name': est.patient_name,
+            'patient_uhid': est.patient_uhid,
+            'patient_category': est.patient_category,
+            'total_amount': float(est.final_total),  # Frontend expects 'total_amount'
+            'generated_by_role': est.generated_by_role,
+            'generated_by': est.generated_by_user.username,  # Frontend expects 'generated_by'
+            'created_at': est.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for est in estimates]
+        
+        print(f"Returning {len(result)} estimates")
+        print("=== END SAVED ESTIMATES API ===\n")
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"ERROR in saved estimates API: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error retrieving estimates: {str(e)}'}), 500
+
+@main.route('/api/saved-estimates/<int:estimate_id>', methods=['GET'])
+@login_required
+def get_saved_estimate(estimate_id):
+    """Get specific saved estimate"""
+    print(f"\n=== GET SAVED ESTIMATE {estimate_id} ===")
+    print(f"Current user: {current_user.username} (ID: {current_user.id})")
+    print(f"User role: {current_user.role}")
+    print(f"Is admin: {current_user.is_admin}")
+    print(f"Is manager: {current_user.is_manager}")
+    
+    try:
+        print(f"Querying for estimate ID: {estimate_id}")
+        estimate = SavedEstimate.query.get_or_404(estimate_id)
+        print(f"Found estimate: {estimate.estimate_number}")
+        print(f"Estimate generated by user ID: {estimate.generated_by_user_id}")
+        
+        # Check permissions
+        has_permission = (current_user.is_admin or 
+                         current_user.is_manager or 
+                         estimate.generated_by_user_id == current_user.id)
+        print(f"Permission check: {has_permission}")
+        
+        if not has_permission:
+            print("ACCESS DENIED")
+            return jsonify({'error': 'Access denied'}), 403
+        
+        print("ACCESS GRANTED - Building response...")
+        response_data = {
+            'id': estimate.id,
+            'estimate_number': estimate.estimate_number,
+            'patient_name': estimate.patient_name,
+            'patient_uhid': estimate.patient_uhid,
+            'patient_category': estimate.patient_category,
+            'length_of_stay': estimate.length_of_stay,
+            'total_amount': float(estimate.final_total),  # Fixed: use final_total instead of total_amount
+            'created_at': estimate.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'estimate_data': estimate.estimate_data
+        }
+        print(f"Response data prepared, estimate_data length: {len(estimate.estimate_data) if estimate.estimate_data else 0}")
+        print("=== END GET SAVED ESTIMATE ===\n")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        print(f"ERROR in get_saved_estimate: {str(e)}")
+        print(f"Exception type: {type(e)}")
+        import traceback
+        print(f"Full traceback:\n{traceback.format_exc()}")
+        print("=== END GET SAVED ESTIMATE (ERROR) ===\n")
+        return jsonify({'error': f'Error retrieving estimate: {str(e)}'}), 500
+
+# Debug endpoint to check database
+@main.route('/api/debug/estimates', methods=['GET'])
+@login_required
+def debug_estimates():
+    """Debug endpoint to check estimates in database"""
+    try:
+        total_estimates = SavedEstimate.query.count()
+        all_estimates = SavedEstimate.query.all()
+        
+        return jsonify({
+            'total_estimates': total_estimates,
+            'estimates': [{
+                'id': est.id,
+                'estimate_number': est.estimate_number,
+                'patient_name': est.patient_name,
+                'generated_by_user_id': est.generated_by_user_id,
+                'generated_by_username': est.generated_by_user.username if est.generated_by_user else 'Unknown'
+            } for est in all_estimates]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

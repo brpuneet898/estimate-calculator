@@ -20,7 +20,7 @@
                 <h1>Hospital Estimate Builder</h1>
             </div>
             <nav class="nav-links">
-                <button class="btn btn-outline">
+                <button class="btn btn-outline" onclick="openReportsModal()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14,2 14,8 20,8"/>
@@ -51,95 +51,142 @@
     </header>
 
     <!-- Main Content -->
-    <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 2rem 1rem;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
-            
-            <!-- Left Column - Patient Form -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Patient Information</h3>
-                </div>
-                <form id="patient-form">
-                    <div class="form-group">
-                        <label class="form-label">Patient Name</label>
-                        <input type="text" id="patient-name" class="form-input" placeholder="Enter patient name">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">UHID</label>
-                        <input type="text" id="patient-uhid" class="form-input" placeholder="Enter UHID">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Length of Stay (Days)</label>
-                        <input type="number" id="patient-stay" class="form-input" value="1" min="1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Category</label>
-                        <select id="patient-category" class="form-input">
-                            <option value="">Select Category</option>
-                            <option value="charity">Charity</option>
-                            <option value="general_nc_a">General NC A</option>
-                            <option value="general_nc_b">General NC B</option>
-                            <option value="general">General</option>
-                            <option value="deluxe">Deluxe</option>
-                            <option value="super_deluxe">Super Deluxe</option>
-                        </select>
-                    </div>
-                </form>
+    <div class="dashboard-container">
+        
+        <!-- Left Column - Patient Form -->
+        <div class="dashboard-card card">
+            <div class="card-header">
+                <h3 class="card-title">Patient Information</h3>
             </div>
-
-            <!-- Middle Column - Services -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Services & Procedures</h3>
-                </div>
-                
-                <!-- Service Category Tabs -->
-                <div class="service-tabs" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;" id="service-category-tabs">
-                    <!-- Service category tabs will be loaded dynamically -->
-                </div>
-
-                <!-- Service Content -->
-                <div id="service-content">
-                    <div class="flex justify-between items-center mb-4">
-                        <h4 id="service-category-title">Laboratory Services</h4>
-                        <!-- NO Add Service button for users -->
-                    </div>
-                    
-                    <div id="services-list">
-                        <!-- Services will be loaded here -->
-                    </div>
+            <div class="card-content">
+                <div class="patient-form-container">
+                    <form id="patient-form">
+                        <div class="form-group">
+                            <label class="form-label">Patient Name</label>
+                            <input type="text" id="patient-name" class="form-input" placeholder="Enter patient name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">UHID</label>
+                            <input type="text" id="patient-uhid" class="form-input" placeholder="Enter UHID">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Length of Stay (Days)</label>
+                            <input type="number" id="patient-stay" class="form-input" value="1" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select id="patient-category" class="form-input">
+                                <option value="">Select Category</option>
+                                <option value="charity">Charity</option>
+                                <option value="general_nc_a">General NC A</option>
+                                <option value="general_nc_b">General NC B</option>
+                                <option value="general">General</option>
+                                <option value="deluxe">Deluxe</option>
+                                <option value="super_deluxe">Super Deluxe</option>
+                            </select>
+                        </div>
+                    </form>
                 </div>
             </div>
+        </div>
 
-            <!-- Right Column - Estimate Summary -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Estimate Summary</h3>
-                </div>
-                
-                <div id="estimate-summary">
-                    <div class="mb-4">
-                        <h4 style="font-weight: 600; margin-bottom: 1rem;">Patient Details</h4>
-                        <div style="font-size: 0.875rem; color: var(--muted-foreground);">
-                            <div><strong>Name:</strong> <span id="summary-name">Not specified</span></div>
-                            <div><strong>UHID:</strong> <span id="summary-uhid">Not specified</span></div>
-                            <div><strong>Category:</strong> <span id="summary-category">Not selected</span></div>
-                            <div><strong>Stay:</strong> <span id="summary-stay">1</span> days</div>
+        <!-- Middle Column - Services -->
+        <div class="dashboard-card card">
+            <div class="card-header">
+                <h3 class="card-title">Services & Procedures</h3>
+            </div>
+            <div class="card-content">
+                <div class="services-container">
+                    <!-- Service Category Tabs -->
+                    <div class="service-tabs" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;" id="service-category-tabs">
+                        <!-- Service category tabs will be loaded dynamically -->
+                    </div>
+
+                    <!-- Service Content -->
+                    <div id="service-content">
+                        <div class="flex justify-between items-center mb-4 service-header">
+                            <h4 id="service-category-title">Laboratory Services</h4>
+                            <!-- NO Add Service button for users -->
+                        </div>
+                        
+                        <div id="services-list">
+                            <!-- Services will be loaded here -->
                         </div>
                     </div>
-                    
-                    <div id="estimate-details" style="display: none;">
-                        <!-- Estimate breakdown will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Estimate Summary -->
+        <div class="dashboard-card card">
+            <div class="card-header">
+                <h3 class="card-title">Estimate Summary</h3>
+            </div>
+            <div class="card-content">
+                <div class="estimate-container">
+                    <div id="estimate-summary">
+                        <div class="patient-details-section">
+                            <h4 style="font-weight: 600; margin-bottom: 1rem;">Patient Details</h4>
+                            <div style="font-size: 0.875rem; color: var(--muted-foreground);">
+                                <div><strong>Name:</strong> <span id="summary-name">Not specified</span></div>
+                                <div><strong>UHID:</strong> <span id="summary-uhid">Not specified</span></div>
+                                <div><strong>Category:</strong> <span id="summary-category">Not selected</span></div>
+                                <div><strong>Stay:</strong> <span id="summary-stay">1</span> days</div>
+                            </div>
+                        </div>
+                        
+                        <div class="estimate-content">
+                            <div id="estimate-details" style="display: none;">
+                                <!-- Estimate breakdown will appear here -->
+                            </div>
+                            
+                            <div class="text-center text-muted" id="estimate-placeholder">
+                                Complete patient information and select services to see estimate
+                            </div>
+                        </div>
+                        
+                        <div class="estimate-actions">
+                            <button class="btn btn-primary w-full" id="generate-estimate-btn">Generate Estimate</button>
+                            <button class="btn btn-outline w-full" onclick="printEstimate()">Print Estimate</button>
+                            <button class="btn btn-outline w-full" onclick="saveEstimate()">Save Estimate</button>
+                        </div>
                     </div>
-                    
-                    <div class="text-center text-muted" id="estimate-placeholder">
-                        Complete patient information and select services to see estimate
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Modal -->
+    <div id="reports-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 1200px; width: 95%;">
+            <div class="modal-header">
+                <h2>My Saved Estimates</h2>
+                <button onclick="closeReportsModal()" class="btn btn-outline" style="padding: 0.5rem; width: auto;">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="reports-loading" style="text-align: center; padding: 2rem;">
+                    <div>Loading saved estimates...</div>
+                </div>
+                <div id="reports-content" style="display: none;">
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                            <thead>
+                                <tr style="background-color: var(--muted); border-bottom: 1px solid var(--border);">
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">Estimate No.</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">Patient Name</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">UHID</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">Total Amount</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-right: 1px solid var(--border);">Date Created</th>
+                                    <th style="padding: 0.75rem; text-align: left;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-table-body">
+                                <!-- Estimates will be loaded here -->
+                            </tbody>
+                        </table>
                     </div>
-                    
-                    <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                        <button class="btn btn-primary w-full" id="generate-estimate-btn">Generate Estimate</button>
-                        <button class="btn btn-outline w-full" onclick="printEstimate()">Print Estimate</button>
-                        <button class="btn btn-outline w-full">Save Estimate</button>
+                    <div id="no-estimates" style="text-align: center; padding: 2rem; display: none;">
+                        <div style="color: var(--muted-foreground);">No saved estimates found.</div>
                     </div>
                 </div>
             </div>

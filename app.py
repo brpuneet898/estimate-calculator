@@ -69,6 +69,12 @@ def create_default_data():
         admin.set_password('admin')
         db.session.add(admin)
     
+    # Create test user for user dashboard
+    if not User.query.filter_by(username='testuser').first():
+        user = User(username='testuser', role='user', approved=True, rejected=False)
+        user.set_password('testuser')
+        db.session.add(user)
+    
     db.session.commit()
 
 # Create app instance
